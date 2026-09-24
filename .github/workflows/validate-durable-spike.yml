@@ -1,16 +1,6 @@
 name: Validate durable workflow spike
 on:
-  pull_request:
-    paths:
-      - 'spikes/ZT01-01-durable-workflow/**'
-      - '.github/workflows/validate-durable-spike.yml'
-      - 'docs/adr/ADR-001*'
-      - 'docs/tasks/ZT01-01-execution.md'
-      - 'docs/testing/zt01-01-report.md'
-      - 'packages/domain/**'
-      - 'packages/telemetry/**'
-      - 'packages/testkit/**'
-      - 'pnpm-lock.yaml'
+  workflow_call:
 permissions:
   contents: read
 concurrency:
@@ -43,6 +33,7 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.21.0'
@@ -53,6 +44,7 @@ jobs:
           npm ci --no-fund
           git diff --exit-code -- package-lock.json
           sha256sum package-lock.json > reports/lock-sha256.txt
+          cp package-lock.json reports/package-lock.json
           npm ls --all --json > reports/dependency-tree.json
           npm --version > reports/npm-version.txt
           node --version > reports/node-version.txt
@@ -77,12 +69,17 @@ jobs:
           mkdir -p reports
           git rev-parse HEAD > reports/source-commit.txt
           tar --exclude='./node_modules' --exclude='./.bin' --exclude='./reports' --exclude='./dist' -czf reports/spike-source.tar.gz .
+      - name: Hash and verify the durability artifact
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          JOB_RESULT: ${{ job.status }}
+        run: |
+          python3 ../../scripts/quality/gate.py manifest --directory reports --suite durability --job-status "$JOB_RESULT" --output reports/artifact-manifest.json
+          python3 ../../scripts/quality/gate.py verify-manifest --directory reports --expected-commit "$(git rev-parse HEAD)"
       - name: Upload source, resolved lock and evidence
         if: ${{ always() && steps.checkout.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: zt01-01-evidence
           retention-days: 14
-          path: |
-            spikes/ZT01-01-durable-workflow/reports/
-            spikes/ZT01-01-durable-workflow/package-lock.json
+          path: spikes/ZT01-01-durable-workflow/reports/

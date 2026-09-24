@@ -46,7 +46,7 @@ python scripts/validate_plans.py
 
 - [完整规划](docs/README.md)
 - [开发状态](docs/tasks/status.md)
-- [最新实施说明](docs/tasks/ZT01-04-execution.md)
+- [最新实施说明](docs/tasks/ZT01-05-execution.md)
 - [架构与决策](docs/adr/README.md)
 - [本地环境与版本](docs/development/foundation.md)
 - [仓库协作约定](AGENTS.md)
@@ -58,3 +58,7 @@ python scripts/validate_plans.py
 ## 测试基础
 
 [ZT01-04 隔离测试指南](docs/development/testkit.md)包含FakeRuntime、双租户Fixture、临时PostgreSQL与浏览器并行测试。构建后运行 `pnpm test:fixtures`；真实数据库套件按指南准备专用服务后运行 `pnpm test:integration`，缺配置会失败。
+
+### 工程质量门禁（ZT01-05）
+
+安装 `quality/requirements.txt` 中的 Python 检查依赖并完成构建后，运行 `pnpm quality:check`。数据库迁移演练使用 `pnpm test:migrations`，必须接入专用临时测试库；真实模型验证状态用 `pnpm test:live` 单独查看。完整说明见 [质量门禁指南](docs/development/quality-gates.md)。

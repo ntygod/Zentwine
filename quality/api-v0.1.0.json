@@ -1,0 +1,101 @@
+{
+  "version": "0.1.0",
+  "schemas": {
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "product",
+        "mode",
+        "server_time",
+        "capabilities",
+        "runtimes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "0.1.0"
+        },
+        "product": {
+          "const": "Zentwine"
+        },
+        "mode": {
+          "const": "development-bootstrap"
+        },
+        "server_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "management_shell",
+            "studio_shell",
+            "identity",
+            "execution",
+            "persistence"
+          ],
+          "properties": {
+            "management_shell": {
+              "const": true
+            },
+            "studio_shell": {
+              "const": true
+            },
+            "identity": {
+              "const": false
+            },
+            "execution": {
+              "const": false
+            },
+            "persistence": {
+              "const": false
+            }
+          }
+        },
+        "runtimes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "state"],
+            "properties": {
+              "id": {
+                "enum": ["claude", "codex"]
+              },
+              "state": {
+                "const": "not_connected"
+              }
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "details", "trace_id", "retryable"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "trace_id": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
