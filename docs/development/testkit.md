@@ -52,7 +52,7 @@ pnpm test:integration
 docker compose -f infra/testkit/compose.yml down --volumes
 ```
 
-最后一条只清理本项目的测试服务，不对任意数据库执行删除。测试失败或被中断也应执行down。此Compose文件的端到端启动如未经CI执行，会在报告中如实列出；CI使用相同镜像和bootstrap SQL的独立service container。
+最后一条只清理本项目的测试服务，不对任意数据库执行删除。测试失败或被中断也应执行down。本轮CI同时验证独立service container与此Compose文件：启动、等待健康、运行同样13个场景并清理。CI使用独立project名和随机宿主端口；本地默认55432，可用ZENTWINE_TEST_PORT覆盖。确切环境与证据见[验证报告](../testing/zt01-04-report.md)。
 
 集成命令先过滤子进程环境，不继承模型Key、DATABASE_URL、PGHOST、NODE_OPTIONS或代理变量。它可在development或未指定NODE_ENV时显式启动test子进程；production模式拒绝。缺URL/ACK时退出1，而不是把测试标为通过。
 
