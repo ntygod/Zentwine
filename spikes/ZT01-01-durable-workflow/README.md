@@ -1,6 +1,6 @@
 # ZT01-01：持久工作流技术验证
 
-这是 Zentwine 的第一项开发实验，不是产品服务器、Agent 基座或可公开部署的 API。对应 [工程底座任务](../../docs/modules/01-foundation.md) 和 [ADR-001 提案](../../docs/adr/ADR-001-engineering-and-orchestration.md)。
+这是 Zentwine 的第一项开发实验，不是产品服务器、Agent 基座或可公开部署的 API。对应 [工程底座任务](../../docs/modules/01-foundation.md)、[ADR-001 提案](../../docs/adr/ADR-001-engineering-and-orchestration.md) 和 [真实验证报告](../../docs/testing/zt01-01-report.md)。
 
 ## 实际实现
 
@@ -18,7 +18,8 @@ TypeScript 实现输入校验、幂等命令、PostgreSQL 业务事务/outbox、
 docker run --rm -d --name zentwine-poc-postgres \
   -e POSTGRES_USER=poc -e POSTGRES_PASSWORD=poc_local_fixture_only \
   -e POSTGRES_DB=zentwine_poc_test \
-  -p 127.0.0.1:55432:5432 postgres:17.11
+  -p 127.0.0.1:55432:5432 \
+  postgres:17.11@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232
 ```
 
 等待 `docker exec zentwine-poc-postgres pg_isready -U poc -d zentwine_poc_test` 成功，再运行：
@@ -30,7 +31,7 @@ export POC_DATABASE_URL='postgres://poc:poc_local_fixture_only@127.0.0.1:55432/z
 npm test
 ```
 
-首次受控生成锁文件期间可以 `npm install`；一旦锁文件纳入本 PR，复现应使用 `npm ci`。这只是隔离 Spike 的安装方式，未来主工程仍按 ZT01-02 建设 pnpm workspace；本 PR 不决定根项目包管理器。
+已提交通过验证的依赖锁；复现只使用 `npm ci`，不重新解析依赖。这只是隔离 Spike 的安装方式，未来主工程仍按 ZT01-02 建设 pnpm workspace；本 PR 不决定根项目包管理器。
 
 默认测试 SDK 下载指定版本 Temporal CLI，网络或二进制不可用会明确失败，不用 Mock 冒充。也可设置 `POC_TEMPORAL_CLI` 为本机已核验的 CLI 文件；CI 对 Linux 归档执行固定 SHA-256 校验。首次依赖/二进制下载需要网络，不声明支持无缓存离线安装。
 
@@ -67,4 +68,4 @@ npm run test:unit
 
 ## 安全边界
 
-数据库 URL 仅允许 loopback，数据库名必须以 `_test` 结尾；只创建随机前缀的测试 schema。所有 SQL 数据参数化。故障开关仅用于此实验进程。CI 使用只读仓库权限、不读取项目 Secrets、不接入收费模型、不发布服务。依赖和开发服务器可访问互联网下载，但不包含客户材料。
+数据库 URL 仅允许 loopback，数据库名必须以 `_test` 结尾；只创建随机前缀的测试 schema。SQL 数据参数化，唯一拼接的 schema 名经过严格白名单校验。故障开关仅用于此实验进程。长期测试 CI 使用只读仓库权限、不读取项目 Secrets、不接入收费模型、不发布服务。一次性锁文件导入及其删除记录见验证报告。依赖和开发服务器可访问互联网下载，但不包含客户材料。

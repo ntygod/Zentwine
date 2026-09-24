@@ -5,6 +5,8 @@ on:
       - 'spikes/ZT01-01-durable-workflow/**'
       - '.github/workflows/validate-durable-spike.yml'
       - 'docs/adr/ADR-001*'
+      - 'docs/tasks/ZT01-01-execution.md'
+      - 'docs/testing/zt01-01-report.md'
 permissions:
   contents: read
 concurrency:
@@ -42,9 +44,11 @@ jobs:
           node-version: '24.21.0'
       - name: Prepare report directory
         run: mkdir -p reports .bin
-      - name: Install pinned experiment dependencies
+      - name: Install locked experiment dependencies
         run: |
-          if test -f package-lock.json; then npm ci --no-fund; else npm install --no-fund; fi
+          npm ci --no-fund
+          git diff --exit-code -- package-lock.json
+          sha256sum package-lock.json > reports/lock-sha256.txt
           npm ls --all --json > reports/dependency-tree.json
           npm --version > reports/npm-version.txt
           node --version > reports/node-version.txt
