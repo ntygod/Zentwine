@@ -1,0 +1,28 @@
+name: Export ZT01-03 pinned tooling
+on:
+  push:
+    branches: ['feat/ZT01-03-safe-foundations']
+    paths: ['.github/workflows/zt01-03-tooling.yml']
+permissions:
+  contents: read
+jobs:
+  tooling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - name: Fetch exact existing formatter and compiler, no lifecycle scripts
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/zt01-03-tooling"
+          cd "$RUNNER_TEMP/zt01-03-tooling"
+          npm pack prettier@3.6.2 typescript@6.0.2 --ignore-scripts
+          sha256sum *.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: zt01-03-pinned-tooling
+          path: ${{ runner.temp }}/zt01-03-tooling/
+          retention-days: 1
+          if-no-files-found: error
