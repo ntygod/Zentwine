@@ -1,0 +1,78 @@
+name: Validate durable workflow spike
+on:
+  push:
+    branches: ["spike/ZT01-01-durable-workflow"]
+  pull_request:
+    paths:
+      - 'spikes/ZT01-01-durable-workflow/**'
+      - '.github/workflows/validate-durable-spike.yml'
+      - 'docs/adr/ADR-001*'
+permissions:
+  contents: read
+concurrency:
+  group: durable-spike-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  experiment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: poc
+          POSTGRES_PASSWORD: poc_local_fixture_only
+          POSTGRES_DB: zentwine_poc_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U poc -d zentwine_poc_test'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: spikes/ZT01-01-durable-workflow
+        shell: bash
+    env:
+      POC_DATABASE_URL: postgres://poc:poc_local_fixture_only@127.0.0.1:5432/zentwine_poc_test
+      POC_TEMPORAL_CLI: .bin/temporal
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - name: Prepare report directory
+        run: mkdir -p reports .bin
+      - name: Install pinned experiment dependencies
+        run: |
+          if test -f package-lock.json; then npm ci --no-fund; else npm install --no-fund; fi
+          npm ls --all --json > reports/dependency-tree.json
+          npm --version > reports/npm-version.txt
+          node --version > reports/node-version.txt
+          docker image inspect postgres:17.11 --format '{{json .RepoDigests}}' > reports/postgres-image-digests.json
+      - name: Install verified Temporal CLI
+        run: |
+          curl --fail --location --retry 3 'https://github.com/temporalio/cli/releases/download/v1.9.1/temporal_cli_1.9.1_linux_amd64.tar.gz' -o .bin/temporal.tar.gz
+          echo '09a0326a51db84d02735e53542b9ebd8c4758daf47482a9ab0abce15844e60d5  .bin/temporal.tar.gz' | sha256sum --check
+          tar -xzf .bin/temporal.tar.gz -C .bin temporal
+          .bin/temporal --version > reports/temporal-version.txt
+      - name: Typecheck and build
+        run: npm run build
+      - name: Unit tests
+        run: npm run test:unit 2>&1 | tee reports/unit-tests.log
+      - name: Real PostgreSQL and Temporal failure tests
+        run: npm run test:integration 2>&1 | tee reports/integration-tests.log
+      - name: Package source and evidence
+        if: always()
+        run: |
+          git rev-parse HEAD > reports/source-commit.txt
+          tar --exclude='./node_modules' --exclude='./.bin' --exclude='./reports' --exclude='./dist' -czf reports/spike-source.tar.gz .
+      - name: Upload source, resolved lock and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: zt01-01-evidence
+          retention-days: 14
+          path: |
+            spikes/ZT01-01-durable-workflow/reports/
+            spikes/ZT01-01-durable-workflow/package-lock.json
