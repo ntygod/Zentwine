@@ -3,18 +3,7 @@ on:
   push:
     branches: [feat/ZT01-02-engineering-foundation]
   pull_request:
-    paths:
-      - 'apps/**'
-      - 'services/**'
-      - 'packages/**'
-      - 'tests/**'
-      - 'scripts/*.mjs'
-      - 'package.json'
-      - 'pnpm*'
-      - 'tsconfig*'
-      - 'playwright.config.ts'
-      - '.npmrc'
-      - '.github/workflows/validate-foundation.yml'
+    paths: ['apps/**','services/**','packages/**','tests/**','scripts/*.mjs','package.json','pnpm*','tsconfig*','playwright.config.ts','.npmrc','.github/workflows/validate-foundation.yml']
 permissions:
   contents: read
 concurrency:
@@ -42,8 +31,12 @@ jobs:
           if test -f pnpm-lock.yaml; then pnpm install --frozen-lockfile; else pnpm install --no-frozen-lockfile; fi
           node --version > reports/node-version.txt
           pnpm --version > reports/pnpm-version.txt
+      - name: Normalize new scaffold with pinned formatter
+        run: pnpm format
       - name: Check, build and test
         run: pnpm check 2>&1 | tee reports/check.log
+      - name: Check formatting
+        run: pnpm format:check
       - name: Install browser for real UI tests
         run: pnpm exec playwright install --with-deps chromium
       - name: Test built workbench and standalone Studio
@@ -57,7 +50,14 @@ jobs:
           git rev-parse HEAD > reports/tested-commit.txt
           git archive --format=zip HEAD -o reports/source.zip
           if test -f pnpm-lock.yaml; then cp pnpm-lock.yaml reports/pnpm-lock.yaml; fi
-          printf '%s\n' 'Engineering scaffold only. No live Agent, identity, persistence or production release verified.' > reports/SCOPE.txt
+          python3 - <<'PY'
+          import json, subprocess, pathlib
+          files = subprocess.check_output(['git','diff','--name-only','-z']).decode().split('\0')
+          allowed=lambda p: p in ['package.json','pnpm-workspace.yaml','tsconfig.base.json','playwright.config.ts'] or p.startswith(('apps/','services/api/','packages/','tests/','scripts/')) and pathlib.Path(p).suffix in ['.ts','.tsx','.mjs','.json','.css','.html']
+          changed={p:pathlib.Path(p).read_text() for p in files if p and allowed(p)}
+          pathlib.Path('reports/formatted-files.json').write_text(json.dumps(changed,ensure_ascii=False))
+          PY
+          printf '%s\n' 'Engineering scaffold only. No live Agent, identity, persistence or production release verified. First normalization is captured separately from git source.' > reports/SCOPE.txt
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
