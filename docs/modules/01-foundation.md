@@ -1,6 +1,6 @@
 # ZT01｜工程底座与持续集成
 
-状态：Planned。负责人职责：技术负责人、平台工程、质量。依赖模块：无。对应蓝图：17、24。
+状态：InProgress。负责人职责：技术负责人、平台工程、质量。依赖模块：无。对应蓝图：17、24。ZT01-01/02 的实际完成与证据见 [实施状态](../tasks/status.md)；本模块其余工作包仍按依赖推进。
 
 ## 目标与边界
 
@@ -10,7 +10,7 @@
 
 目录按架构总纲，packages/contracts 是共享 schema 源；domain 不依赖 UI、数据库或供应商 SDK。前端通过 client 调用 API。环境分开发、测试、预发和生产，示例变量仅有占位，不包含真实 Key。
 
-建议统一 format、lint、typecheck、test、build、contract-check、migration-check、docs-check 命令；这些命令尚未实现，须由任务创建再验证。版本清单记录 Node、包管理器、数据库、SDK、容器镜像摘要及支持系统。
+统一 format、lint、typecheck、test、build、contract-check、migration-check、docs-check 是本模块目标；已实现命令以根 README 和 package.json 为准，其余仍待相应工作包实现。版本清单记录 Node、包管理器、数据库、SDK、容器镜像摘要及支持系统。
 
 ## 开发工作包
 
@@ -27,4 +27,4 @@
 
 必须测试空环境、错误配置、不同操作系统路径、断网依赖安装、CI 无秘密条件。程序输出清楚区分缺配置和产品失败。工程质量门禁不能因模型生成代码而变宽。
 
-完成条件：构建及 Fake 测试证据、ADR、开发说明、CI 记录和依赖锁均存在。部署业务产品不属于本模块完成声明。
+整个模块完成条件：构建及 Fake 测试证据、ADR、开发说明、CI 记录和依赖锁均存在，且所有本模块工作包已验收。部署业务产品不属于本模块完成声明。
