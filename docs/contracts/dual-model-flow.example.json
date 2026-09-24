@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0", "fixture_only": true,
+  "flow_id": "flow-invitation-demo", "mission_id": "mission-team-setup-demo",
+  "context_snapshot_id": "context-invitation-v4-demo",
+  "nodes": [
+    {"id": "backend", "kind": "agent", "depends_on": [], "required": true, "owner": "developer-a-demo", "workspace_id": "workspace-backend-demo", "runtime_id": "claude-agent-sdk", "provider": "anthropic", "model_id": "demo-model-a", "produces": ["backend-change", "module-test-report"]},
+    {"id": "frontend", "kind": "agent", "depends_on": [], "required": true, "owner": "developer-b-demo", "workspace_id": "workspace-frontend-demo", "runtime_id": "codex-sdk", "provider": "openai", "model_id": "demo-model-b", "produces": ["frontend-change", "preview-build"]},
+    {"id": "integration", "kind": "verification", "depends_on": ["backend", "frontend"], "required": true, "owner": "quality-owner-demo", "join": "all", "produces": ["version-bound-evidence"]},
+    {"id": "acceptance", "kind": "human_approval", "depends_on": ["integration"], "required": true, "owner": "product-owner-demo", "join": "all", "approval_scope": "accept this exact combined candidate; not a production deployment permission"}
+  ]
+}

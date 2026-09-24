@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentwine.invalid/contracts/runtime-event/1.0",
+  "title": "Zentwine event envelope design draft",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "event_id", "org_id", "aggregate_type", "aggregate_id", "aggregate_version", "event_type", "occurred_at", "recorded_at", "actor", "correlation_id", "causation_id", "trace_id", "payload"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "event_id": {"type": "string", "minLength": 1},
+    "org_id": {"type": "string", "minLength": 1},
+    "aggregate_type": {"type": "string", "minLength": 1},
+    "aggregate_id": {"type": "string", "minLength": 1},
+    "aggregate_version": {"type": "integer", "minimum": 1},
+    "event_type": {"type": "string", "pattern": "^[a-z_]+\\.[a-z_.]+$"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "causation_id": {"type": "string", "minLength": 1},
+    "trace_id": {"type": "string", "minLength": 1},
+    "actor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "on_behalf_of"],
+      "properties": {
+        "kind": {"enum": ["human", "agent", "service"]},
+        "id": {"type": "string", "minLength": 1},
+        "on_behalf_of": {"type": "string", "minLength": 1}
+      }
+    },
+    "payload": {"type": "object"}
+  }
+}
