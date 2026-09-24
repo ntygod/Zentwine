@@ -1,7 +1,5 @@
 name: Validate durable workflow spike
 on:
-  push:
-    branches: ["spike/ZT01-01-durable-workflow"]
   pull_request:
     paths:
       - 'spikes/ZT01-01-durable-workflow/**'
@@ -18,14 +16,14 @@ jobs:
     timeout-minutes: 12
     services:
       postgres:
-        image: postgres:17.11
+        image: postgres:17.11@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232
         env:
           POSTGRES_USER: poc
           POSTGRES_PASSWORD: poc_local_fixture_only
           POSTGRES_DB: zentwine_poc_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd 'pg_isready -U poc -d zentwine_poc_test'
+          --health-cmd "pg_isready -U poc -d zentwine_poc_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     defaults:
       run:
@@ -36,6 +34,7 @@ jobs:
       POC_TEMPORAL_CLI: .bin/temporal
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        id: checkout
         with:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -49,7 +48,7 @@ jobs:
           npm ls --all --json > reports/dependency-tree.json
           npm --version > reports/npm-version.txt
           node --version > reports/node-version.txt
-          docker image inspect postgres:17.11 --format '{{json .RepoDigests}}' > reports/postgres-image-digests.json
+          docker image inspect postgres:17.11@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232 --format '{{json .RepoDigests}}' > reports/postgres-image-digests.json
       - name: Install verified Temporal CLI
         run: |
           curl --fail --location --retry 3 'https://github.com/temporalio/cli/releases/download/v1.9.1/temporal_cli_1.9.1_linux_amd64.tar.gz' -o .bin/temporal.tar.gz
@@ -62,13 +61,16 @@ jobs:
         run: npm run test:unit 2>&1 | tee reports/unit-tests.log
       - name: Real PostgreSQL and Temporal failure tests
         run: npm run test:integration 2>&1 | tee reports/integration-tests.log
+      - name: Dependency audit
+        run: npm audit --audit-level=high --json > reports/npm-audit.json
       - name: Package source and evidence
-        if: always()
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
         run: |
+          mkdir -p reports
           git rev-parse HEAD > reports/source-commit.txt
           tar --exclude='./node_modules' --exclude='./.bin' --exclude='./reports' --exclude='./dist' -czf reports/spike-source.tar.gz .
       - name: Upload source, resolved lock and evidence
-        if: always()
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: zt01-01-evidence
