@@ -1,19 +1,23 @@
 # ZT01-06 执行记录
 
-输入：main@b8bff3d7fc58e4a1733f5881bd8e59e8eac5aeb6；源码树8b03547b7d2fa34b8f651a9c08dac634685c115d。分支 `feat/ZT01-06-development-environment`，关联 Issue #12。
+输入：main@b8bff3d7fc58e4a1733f5881bd8e59e8eac5aeb6；源码树8b03547b7d2fa34b8f651a9c08dac634685c115d。分支 `feat/ZT01-06-development-environment`，关联 [Issue #12](https://github.com/ntygod/Zentwine/issues/12)、[PR #13](https://github.com/ntygod/Zentwine/pull/13)。
 
-状态：InProgress。实施与自审：本次AI开发会话；依据负责人既有授权推进，不冒称独立审查。
+状态：Done（限定实现与实测验收；最终合并以PR最新Checks和merge记录为准）。实施与自审：本次AI开发会话，依据负责人既有授权推进，不冒称独立审查。
 
-## 范围
+## 交付
 
-统一env:up/status/down、分层doctor、固定工具准备、独立session的数据库和耐久故障drill、进程组清理、贡献说明与版本许可资料。原页面/业务范围不扩展，原测试断言不改写，无JS依赖升级。
+统一env:up/status/down、fresh/app/integration/faults诊断、固定工具准备、独立session数据库与耐久故障drill、进程组清理、贡献指南、版本许可资料及40个新增开发环境场景（29工具、3应用生命周期、8真实Compose/恢复）。原页面/业务范围不扩展，原测试断言不改写，JS依赖与锁不变。
 
-## 验证
+## 已运行证据
 
-本地Node22的29个新增工具单测已通过，包含模拟Docker生命周期和真实子进程/文件锁；不据此声明Node24、真实Docker或产品通过。完整质量总门禁将在PR精确提交上运行。最终结果以 [验证报告](../testing/zt01-06-report.md) 和PR Checks为准。
+[完整CI 36024140918](https://github.com/ntygod/Zentwine/actions/runs/36024140918) 全部通过。功能head ebff791a53a5f3bcbeda11bb95e0c2bf120c7875，实际PR候选被测commit 0d8b5abaa7f6c661ba14554508c19723076ecbba；源码树b321b81ebed24278fd558fcfcfb309dd294236d4。
 
-## 边界
+123个主工程测试、9个浏览器、3个实际页面启动/取消、8个真实环境场景通过。原13个PG、8个迁移和Temporal 8单元+9业务场景通过；新drill重新执行相同原用例，不重复累计。SIGKILL持锁进程后的显式session恢复也经过实际Docker验证。工具版本、报告归属和边界见 [验证报告](../testing/zt01-06-report.md)。
 
-只管理本机合成开发资源，无付费模型、客户数据或生产部署；日志与状态的用途有限，flock/标签不是管理员安全边界。工作包完成不代表完整产品E01–E52或W0所有跨模块能力已完成。
+本记录的文档改动仍必须通过新的精确提交总门禁，不能把旧CI成功自动转给后续代码。最终下载制品与合并commit记录在PR；报告是可复查的证据，不是生产验收。
 
-后续按计划进入ZT02身份授权与ZT03领域版本基础，先读对应模块前置，不自动把所有W0目标标为完成。
+## 范围与回退
+
+仅Linux本机合成资源。无付费模型、客户数据、生产部署或新增云资源；Docker/flock/标签不是管理员安全边界，断电等仍需按session恢复。产品E01–E52未因此通过，平台强制分支保护未由本轮配置。
+
+ZT01六个工作包实现验收已具备；这不是W0全部跨模块完成。下一工作包ZT02-01：组织、身份、会话、成员关系及API租户上下文。回退前先用本版本清理本机session，再回退本PR；没有生产迁移。
