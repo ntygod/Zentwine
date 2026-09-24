@@ -1,0 +1,106 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { buildApp } from "../services/api/dist/app.js";
+import { isBootstrap } from "../packages/contracts/dist/index.js";
+async function withApp(fn) {
+  const app = buildApp({ now: () => new Date("2026-09-24T00:00:00Z") });
+  try {
+    await fn(app);
+  } finally {
+    await app.close();
+  }
+}
+test("liveness is distinct from production readiness", () =>
+  withApp(async (app) => {
+    assert.equal((await app.inject("/livez")).statusCode, 200);
+    const r = await app.inject("/readyz");
+    assert.equal(r.statusCode, 503);
+    assert.equal(r.json().production_ready, false);
+  }));
+test("bootstrap has real service metadata and explicitly disconnected capabilities", () =>
+  withApp(async (app) => {
+    const r = await app.inject("/api/v1/system/bootstrap");
+    assert.equal(r.statusCode, 200);
+    assert.equal(isBootstrap(r.json()), true);
+    assert.equal(r.json().capabilities.execution, false);
+    assert.equal(r.json().server_time, "2026-09-24T00:00:00.000Z");
+    assert.equal(r.headers["cache-control"], "no-store");
+  }));
+test("repeated reads do not create state or execution", () =>
+  withApp(async (app) => {
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => app.inject("/api/v1/system/bootstrap")),
+    );
+    for (const r of results) {
+      assert.equal(r.statusCode, 200);
+      assert.deepEqual(r.json(), results[0].json());
+    }
+  }));
+test("write commands denied before identity implementation", () =>
+  withApp(async (app) => {
+    for (const method of ["POST", "PUT", "DELETE"]) {
+      const r = await app.inject({
+        method,
+        url: "/api/v1/orgs/local/workspaces/x/runs",
+      });
+      assert.equal(r.statusCode, 401);
+      assert.equal(r.json().code, "unauthenticated");
+    }
+  }));
+test("unknown organizations and workspaces have identical safe responses", () =>
+  withApp(async (app) => {
+    for (const org of ["local", "someone-else"]) {
+      const r = await app.inject(`/api/v1/orgs/${org}/workspaces/unknown`);
+      assert.equal(r.statusCode, 401);
+      assert.equal(r.json().message, "Identity is not configured");
+    }
+  }));
+test("query validation does not echo rejected values", () =>
+  withApp(async (app) => {
+    const r = await app.inject("/api/v1/system/bootstrap?token=fixture-secret");
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.body.includes("fixture-secret"), false);
+    assert.equal(r.json().code, "invalid_input");
+  }));
+test("untrusted hosts and cross-site browser calls are denied", () =>
+  withApp(async (app) => {
+    assert.equal(
+      (
+        await app.inject({
+          url: "/api/v1/system/bootstrap",
+          headers: { host: "evil.example" },
+        })
+      ).statusCode,
+      403,
+    );
+    assert.equal(
+      (
+        await app.inject({
+          url: "/api/v1/system/bootstrap",
+          headers: { "sec-fetch-site": "cross-site" },
+        })
+      ).statusCode,
+      403,
+    );
+  }));
+test("caller cannot control server-generated trace id", () =>
+  withApp(async (app) => {
+    const r = await app.inject({
+      url: "/unknown",
+      headers: { "x-request-id": "attacker-value" },
+    });
+    assert.equal(r.statusCode, 404);
+    assert.notEqual(r.json().trace_id, "attacker-value");
+    assert.equal(r.json().trace_id, r.headers["x-request-id"]);
+  }));
+test("oversized and malformed requests are safely rejected", () =>
+  withApp(async (app) => {
+    const r = await app.inject({
+      method: "POST",
+      url: "/api/v1/orgs/local/runs",
+      headers: { "content-type": "application/json" },
+      payload: '{"secret":',
+    });
+    assert.ok(r.statusCode >= 400);
+    assert.equal(r.body.includes("secret"), false);
+  }));
