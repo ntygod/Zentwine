@@ -1,0 +1,103 @@
+name: Validate isolated testkit
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: testkit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232
+        env:
+          POSTGRES_USER: zt_test_admin
+          POSTGRES_PASSWORD: zt_fixture_password_only
+          POSTGRES_DB: zentwine_test_control
+        ports: [5432/tcp]
+        options: >-
+          --health-cmd "pg_isready -U zt_test_admin -d zentwine_test_control"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+    env:
+      NODE_ENV: test
+      ZENTWINE_TEST_DATABASE_ACK: disposable-local-only
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - name: Resolve the disposable service endpoint after the job starts
+        env:
+          TEST_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          [[ "$TEST_PORT" =~ ^[0-9]+$ ]]
+          echo "ZENTWINE_TEST_DATABASE_URL=postgres://zt_test_admin:zt_fixture_password_only@127.0.0.1:$TEST_PORT/zentwine_test_control" >> "$GITHUB_ENV"
+      - name: Install exact test dependencies and build
+        run: |
+          mkdir -p reports
+          npm install --global pnpm@11.10.0 --ignore-scripts
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Initialize only the disposable service guard
+        run: |
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs/promises';
+          import { connectTestPostgres } from './tests/integration/pg-driver.mjs';
+          import { parseTestDatabaseEnvironment } from './packages/testkit/dist/postgres.js';
+          const client = await connectTestPostgres(parseTestDatabaseEnvironment(process.env));
+          try {
+            await client.query(await fs.readFile('infra/testkit/bootstrap.sql', 'utf8'));
+            const version = (await client.query('SHOW server_version')).rows;
+            await fs.writeFile('reports/postgres-version.json', JSON.stringify(version));
+          } finally { await client.close(); }
+          JS
+      - name: Run isolated fixture tests
+        run: pnpm test:fixtures 2>&1 | tee reports/fixture-tests.log
+      - name: Run real database isolation tests
+        run: pnpm test:integration 2>&1 | tee reports/database-tests.log
+      - name: Verify missing configuration cannot silently skip integration
+        run: |
+          set +e
+          env -u ZENTWINE_TEST_DATABASE_URL -u ZENTWINE_TEST_DATABASE_ACK node scripts/run-database-tests.mjs > reports/missing-config.log 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 1
+      - name: Verify documented Compose startup, tests and cleanup
+        run: |
+          project="zt04-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export ZENTWINE_TEST_PORT=0
+          trap 'docker compose -p "$project" -f infra/testkit/compose.yml down --volumes' EXIT
+          docker compose -p "$project" -f infra/testkit/compose.yml up -d --wait
+          endpoint=$(docker compose -p "$project" -f infra/testkit/compose.yml port postgres 5432)
+          port="${endpoint##*:}"
+          [[ "$port" =~ ^[0-9]+$ ]]
+          export ZENTWINE_TEST_DATABASE_URL="postgres://zt_test_admin:zt_fixture_password_only@127.0.0.1:$port/zentwine_test_control"
+          pnpm test:integration 2>&1 | tee reports/compose-database-tests.log
+      - name: Verify checked-in source unchanged
+        run: git diff --exit-code
+      - name: Package precise source and reports
+        if: always()
+        run: |
+          mkdir -p reports
+          git rev-parse HEAD > reports/tested-commit.txt
+          git archive --format=zip HEAD -o reports/source.zip
+          sha256sum pnpm-lock.yaml > reports/lock-sha256.txt
+          printf '%s\n' 'Synthetic fixtures and real disposable PostgreSQL only. Not live models, production identity or execution isolation.' > reports/SCOPE.txt
+      - name: Upload testkit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: zt01-04-testkit-evidence
+          path: reports/
+          retention-days: 14
+          if-no-files-found: error

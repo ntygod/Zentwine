@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 import fs from "node:fs";
 const workbench = "http://127.0.0.1:5173/org/local/workbench";
 const studio = "http://127.0.0.1:5174/org/local/studio";

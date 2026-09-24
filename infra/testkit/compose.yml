@@ -1,0 +1,19 @@
+name: zentwine-testkit
+services:
+  postgres:
+    image: postgres:17.11@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232
+    environment:
+      POSTGRES_USER: zt_test_admin
+      POSTGRES_PASSWORD: zt_fixture_password_only
+      POSTGRES_DB: zentwine_test_control
+    ports:
+      - "127.0.0.1:${ZENTWINE_TEST_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./bootstrap.sql:/docker-entrypoint-initdb.d/01-testkit.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zt_test_admin -d zentwine_test_control"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

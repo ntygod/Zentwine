@@ -48,6 +48,13 @@ export function inspectSource(owner, filename, source, packageRoot) {
       ["@zentwine/api", "@zentwine/telemetry"].includes(owner)
     )
       return;
+    if (
+      owner === "@zentwine/testkit" &&
+      ["node:crypto", "node:fs/promises", "node:os", "node:path"].includes(
+        specifier,
+      )
+    )
+      return;
     if (!(rules[owner] ?? []).includes(packageName(specifier)))
       errors.push(`${owner}: forbidden dependency ${specifier}`);
   };

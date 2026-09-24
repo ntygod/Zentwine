@@ -46,7 +46,7 @@ python scripts/validate_plans.py
 
 - [完整规划](docs/README.md)
 - [开发状态](docs/tasks/status.md)
-- [最新实施说明](docs/tasks/ZT01-03-execution.md)
+- [最新实施说明](docs/tasks/ZT01-04-execution.md)
 - [架构与决策](docs/adr/README.md)
 - [本地环境与版本](docs/development/foundation.md)
 - [仓库协作约定](AGENTS.md)
@@ -54,3 +54,7 @@ python scripts/validate_plans.py
 当前软件包均标记 private / UNLICENSED，未自动授予新的产品发行许可；第三方依赖各自许可须保留。开源发布与商业部署另行记录决策，不阻塞内部开发。
 
 配置、错误、请求追踪、时间/ID 与安全日志接口见 [ZT01-03 使用说明](docs/development/safe-foundations.md)。
+
+## 测试基础
+
+[ZT01-04 隔离测试指南](docs/development/testkit.md)包含FakeRuntime、双租户Fixture、临时PostgreSQL与浏览器并行测试。构建后运行 `pnpm test:fixtures`；真实数据库套件按指南准备专用服务后运行 `pnpm test:integration`，缺配置会失败。

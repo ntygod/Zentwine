@@ -2,8 +2,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/browser",
   timeout: 30000,
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: 2,
   retries: 0,
   reporter: [
     ["list"],
@@ -11,6 +11,7 @@ export default defineConfig({
   ],
   use: {
     headless: true,
+    serviceWorkers: "block",
     viewport: { width: 1440, height: 1000 },
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
