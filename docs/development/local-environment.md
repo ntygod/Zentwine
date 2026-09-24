@@ -33,7 +33,7 @@ up 可按摘要拉取缺失镜像；已有相同健康环境则复用，不另�
 
 每次操作先解析 Docker context/DOCKER_HOST，拒绝 TCP、SSH 和非本地 Unix socket；后续命令显式固定同一 socket 和 daemon ID。不继承 COMPOSE_FILE、自动 .env、生产 DATABASE_URL、模型Key或 NODE_OPTIONS。固定 Compose 文件与空 env-file 防止无意加载其他项目配置。
 
-使用 util-linux flock 控制本 checkout 的环境变更；锁文件不删除，内核在进程退出时释放。不会通过旧 PID 文件误杀进程。down 先核对 project 内每个容器/网络的 owner 标签、daemon 和 Compose 摘要；不删除陌生资源、不执行 system prune、不删除镜像。重复 down 返回 absent。
+使用 util-linux flock 控制本 checkout 的环境变更；锁文件不删除，内核在进程退出时释放。不会通过旧 PID 文件误杀进程。down 先核对 project 内每个容器/网络的 owner 标签、daemon 和 Compose 摘要；不删除陌生资源、不执行 system prune、不删除镜像。正常启动且清理成功后，重复 down 返回 absent；启动结果未知的情况需按下文额外确认。
 
 ## 三、自清理的验证入口
 
@@ -70,6 +70,21 @@ SIGKILL、宿主机断电、Docker故障不能由JavaScript finally保证清理�
 pnpm env:status --session <16位session>
 pnpm env:down --session <16位session>
 ```
+
+### 启动结果未知时，不提前删除恢复记录
+
+Compose 启动超时、连接中断或启动期间硬退出，不代表 Docker 已经停止创建资源。此时 `env:down` 清理当前可见的自有资源，但保留状态和凭据，返回 `cleanup_required / start_outcome_unknown`（非0退出）。即使目前查询为空，也不把它当成没有晚到资源的证明；后续可重复执行清理。
+
+先由操作者确认原来的 Compose/daemon 创建操作已经停止，再进行最后一次检查并清理记录：
+
+```bash
+# 确认原启动操作已停止后使用；不能仅因查询为空就确认
+pnpm env:down --session <16位session> --confirm-stopped
+# 手动 env:up 的默认环境不需要 --session
+pnpm env:down --confirm-stopped
+```
+
+`--confirm-stopped` 只适用于 down，是操作者对启动操作已结束的明确确认，不是程序从一次资源查询推断出的结论。错误地提前确认仍可能遗留晚到资源。正常启动已收到成功应答，或者在正常运行阶段被强杀的管理进程，其普通 down 不需要这个标志。drill 的清理如果留下未知状态，整次演练不能标为通过。
 
 只接受该checkout合法session，不接受任意路径。工作区/daemon/Compose摘要变化时拒绝自动清理：先核对原始记录、恢复对应可信配置，再执行；不要改状态文件来跳过检查。文件锁随进程退出释放，不需要 `rm lock`。
 

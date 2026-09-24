@@ -352,6 +352,10 @@ test("partial Compose startup failure is cleaned without reporting ready", async
   engine.failUp = true;
   await assert.rejects(stack.up(), /command_failed/);
   assert.equal(engine.active, false);
+  // Removing currently visible resources cannot prove a timed-out daemon operation has settled.
+  assert.equal((await stack.status()).status, "cleanup_required");
+  assert.equal((await stack.state()).outcome_unknown, true);
+  await stack.down({ acknowledgeUnknown: true });
   assert.equal((await stack.status()).status, "absent");
 });
 test("cleanup failure retains exact ownership state for a later retry", async (t) => {
@@ -468,4 +472,44 @@ test("local Compose and toolchain pin the same immutable PostgreSQL image", asyn
   assert.ok(source.includes("host_ip: 127.0.0.1"));
   assert.ok(!source.includes("privileged:"));
   assert.ok(!source.includes("docker.sock"));
+});
+
+test("unknown start keeps recovery state even when resources appear only after the failed command", async (t) => {
+  const { engine, stack } = await stackFixture(t);
+  const run = engine.run;
+  stack.run = async (command, args, options) => {
+    if (args.includes("compose") && args.includes("up")) {
+      engine.owner = options.env.ZENTWINE_LOCAL_OWNER;
+      throw new LocalToolError("command_timeout");
+    }
+    return run(command, args, options);
+  };
+  await assert.rejects(stack.up(), /command_timeout/);
+  const prior = await stack.state();
+  assert.equal(prior.outcome_unknown, true);
+  assert.equal(engine.active, false);
+  await assert.rejects(stack.up(), /environment_needs_cleanup/);
+  engine.active = true; // Simulated late completion in Docker after the client lost its reply.
+  const result = await stack.down();
+  assert.equal(engine.active, false);
+  assert.equal(result.status, "cleanup_required");
+  assert.equal((await stack.state()).project, prior.project);
+  assert.equal(typeof (await stack.password()), "string");
+  await stack.down({ acknowledgeUnknown: true });
+  assert.equal((await stack.status()).status, "absent");
+});
+test("unknown-outcome acknowledgement is explicit and accepted only for down", () => {
+  assert.equal(
+    parseEnvironmentArgs(["down", "--confirm-stopped"]).acknowledgeUnknown,
+    true,
+  );
+  for (const args of [
+    ["up", "--confirm-stopped"],
+    ["status", "--confirm-stopped"],
+    ["down", "--confirm-stopped", "--confirm-stopped"],
+  ])
+    assert.throws(
+      () => parseEnvironmentArgs(args),
+      /invalid_environment_command/,
+    );
 });

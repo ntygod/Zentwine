@@ -9,7 +9,7 @@
 | [首轮36023261644](https://github.com/ntygod/Zentwine/actions/runs/36023261644) | head30f610b84d6c15ae8ba65d5a3fb732eab8177b15；被测e4c5ff6ca7487e4cb7e64842896b9e5613869a65 | 五项必要job及总门禁通过 |
 | [恢复与归属复验36024140918](https://github.com/ntygod/Zentwine/actions/runs/36024140918) | headebff791a53a5f3bcbeda11bb95e0c2bf120c7875；被测0d8b5abaa7f6c661ba14554508c19723076ecbba；tree b321b81ebed24278fd558fcfcfb309dd294236d4 | 全部通过，包括新增硬退出恢复 |
 
-## 独立场景与重复执行
+## 已通过历史运行的独立场景与重复执行
 
 | 范围 | 结果与解释 |
 |---|---|
@@ -37,3 +37,9 @@ Node24.21.0、pnpm11.10.0；PostgreSQL17.11镜像摘要与Temporal CLI1.9.1归�
 无真实模型、客户数据或生产部署。live为skipped_live，不把Fake算live。容器tmpfs只保存合成测试数据；本地凭据单独0600保存，不纳入源码和交付包。首次和后续CI均未删除原断言、添加凭据豁免、提升工作流权限或变更JS依赖锁。
 
 只验证Linux x64；macOS/Windows/ARM64未验收。离线测试限定pnpm缓存与明确的工具/镜像缓存，不宣称全机器断网安装。Git基线+脏状态不是不可变工作树快照，制品SHA不是签名。SIGKILL/断电不保证JavaScript finally，显式session恢复是兜底，不是普遍自动回收。完整业务身份、Studio编辑、真实多模型及E01–E52仍未交付。
+
+## 合并前的结果未知修复
+
+代码自审发现启动失去应答时过早清除恢复记录的风险，已补充明确outcome_unknown和二阶段清理；不是通过减少断言修复。新增两个工具测试，本轮目标总数变为42项（31工具、3应用生命周期、8真实环境），主工程目标为125项。31个工具测试已在本地Node22通过；上述历史CI的123项不能自动作为修复版本的通过证据。
+
+本修复的正式Node24、完整回归和最终源码归属，以PR #13最新精确提交的统一CI及制品为准；未通过最新检查不会合并。操作说明见 [结果未知收尾](../development/local-environment.md)。

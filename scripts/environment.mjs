@@ -4,11 +4,18 @@ import { LocalToolError } from "./local/process.mjs";
 export function parseEnvironmentArgs(args) {
   const [action, ...flags] = args;
   let offline = false,
-    session;
+    session,
+    acknowledgeUnknown = false;
   if (!["up", "status", "down"].includes(action))
     throw new LocalToolError("invalid_environment_command");
   for (let i = 0; i < flags.length; i++) {
     if (flags[i] === "--offline" && !offline && action === "up") offline = true;
+    else if (
+      flags[i] === "--confirm-stopped" &&
+      action === "down" &&
+      !acknowledgeUnknown
+    )
+      acknowledgeUnknown = true;
     else if (
       flags[i] === "--session" &&
       !session &&
@@ -18,7 +25,12 @@ export function parseEnvironmentArgs(args) {
       session = flags[++i];
     else throw new LocalToolError("invalid_environment_command");
   }
-  return { action, offline, session };
+  return {
+    action,
+    offline,
+    session,
+    ...(acknowledgeUnknown ? { acknowledgeUnknown: true } : {}),
+  };
 }
 if (process.argv[1]?.endsWith("/environment.mjs")) {
   const controller = new AbortController();
@@ -44,7 +56,9 @@ if (process.argv[1]?.endsWith("/environment.mjs")) {
       options.action === "up"
         ? stack.up({ offline: options.offline, signal: controller.signal })
         : options.action === "down"
-          ? stack.down()
+          ? stack.down({
+              acknowledgeUnknown: options.acknowledgeUnknown ?? false,
+            })
           : stack.status(),
     );
     console.log(JSON.stringify(result, null, 2));

@@ -187,6 +187,8 @@ export async function runDrill(options, { signal, source = process.env } = {}) {
         summary.cleanup = ["removed", "absent"].includes(clean.status)
           ? "passed"
           : "failed";
+        if (summary.cleanup !== "passed")
+          throw new LocalToolError("environment_cleanup_required");
       }
     });
     summary.status = "passed";

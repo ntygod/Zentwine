@@ -125,7 +125,9 @@ export function validateState(state, rootId) {
     !/^[a-f0-9]{32}$/.test(state.owner) ||
     !/^[a-f0-9]{64}$/.test(state.compose_hash) ||
     !/^[A-Za-z0-9:_-]{6,128}$/.test(state.daemon) ||
-    !["starting", "running", "cleanup_required"].includes(state.phase)
+    !["starting", "running", "cleanup_required"].includes(state.phase) ||
+    (state.outcome_unknown !== undefined &&
+      typeof state.outcome_unknown !== "boolean")
   )
     throw new LocalToolError("invalid_environment_state");
   localDockerHost(state.host);
@@ -326,6 +328,7 @@ export class LocalStack {
       return {
         status: "cleanup_required",
         project: state.project,
+        outcome_unknown: Boolean(state.outcome_unknown),
         live_models: "not_run",
       };
     const runtime = JSON.parse(
@@ -346,6 +349,7 @@ export class LocalStack {
       status:
         healthy && state.phase === "running" ? "running" : "cleanup_required",
       project: state.project,
+      outcome_unknown: Boolean(state.outcome_unknown),
       port,
       scope: "disposable_local",
       live_models: "not_run",
@@ -369,6 +373,7 @@ export class LocalStack {
       daemon: this.target.daemon,
       compose_hash: this.composeHash,
       phase: "starting",
+      outcome_unknown: true,
     };
     await writePrivate(
       path.join(this.directory, "credential"),
@@ -392,6 +397,7 @@ export class LocalStack {
         ],
         { signal },
       );
+      state.outcome_unknown = false; // Compose acknowledged completion; no pending start remains.
       state.phase = "running";
       await this.save(state);
       const status = await this.status();
@@ -410,7 +416,7 @@ export class LocalStack {
       throw error;
     }
   }
-  async down() {
+  async down({ acknowledgeUnknown = false } = {}) {
     const state = await this.state();
     if (!state) return { status: "absent" };
     const existing = await this.resources(state); // Never remove a resource that fails the ownership check.
@@ -424,6 +430,16 @@ export class LocalStack {
       state.phase = "cleanup_required";
       await this.save(state);
       throw new LocalToolError("environment_cleanup_required");
+    }
+    if (state.outcome_unknown && !acknowledgeUnknown) {
+      state.phase = "cleanup_required";
+      await this.save(state);
+      return {
+        status: "cleanup_required",
+        project: state.project,
+        reason: "start_outcome_unknown",
+        observed_resources_removed: true,
+      };
     }
     await fs.rm(path.join(this.directory, "credential"), { force: true });
     await fs.unlink(path.join(this.directory, "state.json"));
