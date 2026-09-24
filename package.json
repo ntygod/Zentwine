@@ -21,7 +21,7 @@
     "check": "pnpm lint && pnpm build && pnpm typecheck && pnpm test",
     "docs:check": "python scripts/validate_plans.py",
     "doctor": "node scripts/doctor.mjs",
-    "test:foundation": "node --test tests/foundations.test.mjs tests/observability-api.test.mjs"
+    "test:foundation": "node --test tests/foundations.test.mjs tests/logging-boundaries.test.mjs tests/observability-api.test.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",
