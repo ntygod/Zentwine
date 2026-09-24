@@ -1,4 +1,9 @@
-import { isApiError, isBootstrap, type Bootstrap } from "@zentwine/contracts";
+import {
+  isApiError,
+  isBootstrap,
+  isErrorCode,
+  type Bootstrap,
+} from "@zentwine/contracts";
 export class ClientError extends Error {
   constructor(
     public readonly code: string,
@@ -38,7 +43,9 @@ export function createClient(options: ClientOptions = {}) {
         if (!response.ok) {
           // Remote error text may contain sensitive or hostile data. Use local UI copy.
           throw new ClientError(
-            isApiError(body) ? body.code : "unavailable",
+            isApiError(body) && isErrorCode(body.code)
+              ? body.code
+              : "unavailable",
             "服务暂不可用，请重试",
             isApiError(body) ? body.trace_id : undefined,
           );

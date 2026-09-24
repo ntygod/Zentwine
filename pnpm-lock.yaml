@@ -97,6 +97,9 @@ importers:
       '@zentwine/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@zentwine/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/testkit:
     dependencies:

@@ -10,5 +10,6 @@
 | ADR-004 | Proposed | 供应商兼容、真实双基座验证 |
 | ADR-005 | Proposed | 独立验证与版本证据 |
 | ADR-006 | Proposed | 自治、插件及授权边界 |
+| [ADR-007](ADR-007-safe-foundations.md) | Accepted | 配置、安全错误、请求追踪、时间/ID 与诊断脱敏 |
 
 未明确接受的提案不自动变成已实现能力。可使用 [ADR 模板](../templates/adr.md)。

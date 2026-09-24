@@ -52,3 +52,5 @@ python scripts/validate_plans.py
 - [仓库协作约定](AGENTS.md)
 
 当前软件包均标记 private / UNLICENSED，未自动授予新的产品发行许可；第三方依赖各自许可须保留。开源发布与商业部署另行记录决策，不阻塞内部开发。
+
+配置、错误、请求追踪、时间/ID 与安全日志接口见 [ZT01-03 使用说明](docs/development/safe-foundations.md)。

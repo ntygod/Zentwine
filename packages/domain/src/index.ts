@@ -24,3 +24,8 @@ export function matchesRevision(a: RevisionRef, b: RevisionRef): boolean {
     a.content_hash === b.content_hash
   );
 }
+
+/** Elapsed duration only; not a persistent timestamp or cross-machine ordering. */
+export interface MonotonicClock {
+  milliseconds(): number;
+}

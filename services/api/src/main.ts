@@ -1,27 +1,32 @@
-import { parseConfig } from "@zentwine/config";
+import { ConfigurationError, parseServiceConfig } from "@zentwine/config";
+import { createLogger } from "@zentwine/telemetry";
 import { buildApp } from "./app.js";
+const sink = (line: string): void => {
+  process.stdout.write(line);
+};
 async function main(): Promise<void> {
-  const config = parseConfig(process.env);
-  const app = buildApp();
-  await app.listen({ host: config.host, port: config.port });
-  console.log(
-    JSON.stringify({
-      level: "info",
-      event: "api.started",
-      host: config.host,
-      port: config.port,
-      mode: "development-bootstrap",
-    }),
-  );
+  const config = parseServiceConfig(process.env);
+  const logger = createLogger({ level: config.logging.level, sink });
+  const app = buildApp({ config, logSink: sink });
+  await app.listen({ host: config.server.host, port: config.server.port });
+  logger.log("info", "api.started", {
+    host: config.server.host,
+    port: config.server.port,
+    mode: "development-bootstrap",
+  });
   let closing = false;
   const shutdown = (): void => {
     if (closing) return;
     closing = true;
-    const timer = setTimeout(() => process.exit(1), 5000).unref();
+    const timer = setTimeout(
+      () => process.exit(1),
+      config.shutdownTimeoutMs,
+    ).unref();
     app
       .close()
       .then(() => {
         clearTimeout(timer);
+        logger.log("info", "api.stopped");
         process.exitCode = 0;
       })
       .catch(() => {
@@ -31,9 +36,22 @@ async function main(): Promise<void> {
   process.once("SIGTERM", shutdown);
   process.once("SIGINT", shutdown);
 }
-main().catch(() => {
-  console.error(
-    "API could not start. Check configuration and port availability.",
+main().catch((error: unknown) => {
+  // A constant error event with field/reason only; never dump process.env or exceptions.
+  createLogger({
+    sink: (line) => {
+      process.stderr.write(line);
+    },
+  }).log(
+    "error",
+    "api.start_failed",
+    error instanceof ConfigurationError
+      ? {
+          code: "invalid_configuration",
+          field: error.field,
+          reason: error.reason,
+        }
+      : { code: "startup_failed" },
   );
   process.exitCode = 1;
 });
