@@ -15,3 +15,5 @@ test-results/
 __pycache__/
 *.pyc
 .venv-quality/
+
+.zentwine/

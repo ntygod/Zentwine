@@ -1,0 +1,33 @@
+# Dedicated, disposable infrastructure; Workbench/Studio still run on the host.
+services:
+  postgres:
+    image: postgres:17.11@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232
+    environment:
+      POSTGRES_USER: zt_test_admin
+      POSTGRES_PASSWORD: ${ZENTWINE_LOCAL_PASSWORD:?Use the local environment command}
+      POSTGRES_DB: zentwine_test_control
+    ports:
+      - target: 5432
+        host_ip: 127.0.0.1
+        published: "0"
+        protocol: tcp
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ../testkit/bootstrap.sql:/docker-entrypoint-initdb.d/01-testkit.sql:ro
+      - ./workflow-database.sql:/docker-entrypoint-initdb.d/02-workflow.sql:ro
+    labels:
+      io.zentwine.local-owner: ${ZENTWINE_LOCAL_OWNER:?Use the local environment command}
+      io.zentwine.scope: disposable-local-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zt_test_admin -d zentwine_test_control"]
+      interval: 2s
+      timeout: 3s
+      retries: 25
+    stop_grace_period: 10s
+    restart: "no"
+networks:
+  default:
+    labels:
+      io.zentwine.local-owner: ${ZENTWINE_LOCAL_OWNER:?Use the local environment command}
+      io.zentwine.scope: disposable-local-only

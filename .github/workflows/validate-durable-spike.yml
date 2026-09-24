@@ -61,6 +61,16 @@ jobs:
         run: npm run test:unit 2>&1 | tee reports/unit-tests.log
       - name: Real PostgreSQL and Temporal failure tests
         run: npm run test:integration 2>&1 | tee reports/integration-tests.log
+      - name: Prepare fixed local drill tool explicitly
+        working-directory: .
+        run: node scripts/prepare-tools.mjs
+      - name: Rehearse faults through the unified self-cleaning entry
+        working-directory: .
+        run: |
+          mkdir -p reports
+          node scripts/drill.mjs --suite durability --offline 2>&1 | tee reports/development-durability-drill.log
+          cp -r reports/drills spikes/ZT01-01-durable-workflow/reports/development-drills
+          cp reports/development-durability-drill.log spikes/ZT01-01-durable-workflow/reports/
       - name: Dependency audit
         run: npm audit --audit-level=high --json > reports/npm-audit.json
       - name: Package source and evidence

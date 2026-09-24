@@ -102,6 +102,10 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Validate independent owned development environments
+        run: pnpm test:environment 2>&1 | tee reports/development-environments.log
+      - name: Rehearse databases through the unified self-cleaning entry
+        run: pnpm drill --suite database --offline 2>&1 | tee reports/development-database-drill.log
       - name: Verify checked-in source unchanged
         run: git diff --exit-code
       - name: Package precise source and reports
