@@ -1,31 +1,238 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import path from 'node:path';
-import {parseConfig} from '../packages/config/dist/index.js';
-import {workspacePath,isBootstrap} from '../packages/contracts/dist/index.js';
-import {matchesRevision} from '../packages/domain/dist/index.js';
-import {redact,apiError} from '../packages/telemetry/dist/index.js';
-import {FixedClock,SequenceIds} from '../packages/testkit/dist/index.js';
-import {createClient} from '../packages/client/dist/index.js';
-import {inspectSource,checkBoundaries} from '../scripts/check-boundaries.mjs';
-const fixture = {schema_version:'0.1.0',product:'Zentwine',mode:'development-bootstrap',server_time:'2026-09-24T00:00:00Z',capabilities:{management_shell:true,studio_shell:true,identity:false,execution:false,persistence:false},runtimes:[{id:'claude',state:'not_connected'},{id:'codex',state:'not_connected'}]};
-test('config defaults are loopback-only and immutable',() => { const env=Object.freeze({}); assert.deepEqual(parseConfig(env),{mode:'development',host:'127.0.0.1',port:4100}); });
-test('production mode cannot silently expose the bootstrap',() => assert.throws(() => parseConfig({NODE_ENV:'production'}),/NODE_ENV/));
-test('non-loopback host denied',() => assert.throws(() => parseConfig({ZENTWINE_HOST:'0.0.0.0'}),/ZENTWINE_HOST/));
-test('port validation does not echo supplied secrets',() => { for(const value of ['0','65536','NaN','4100x','secret-fixture']) assert.throws(() => parseConfig({ZENTWINE_API_PORT:value}),error => error.message.includes('ZENTWINE_API_PORT') && !error.message.includes(value)); });
-test('deep links validate identifiers',() => { assert.equal(workspacePath('org_1','ws-1'),'/org/org_1/studio/workspaces/ws-1'); for(const value of ['../root','a/b','a?token=x','', 'x'.repeat(81)]) assert.throws(() => workspacePath('org',value)); });
-test('revision match requires id, revision and hash',() => { const a={id:'spec_1',revision:2,content_hash:'abc'}; assert.equal(matchesRevision(a,{...a}),true); assert.equal(matchesRevision(a,{...a,revision:3}),false); assert.equal(matchesRevision(a,{...a,content_hash:'def'}),false); });
-test('fixed clocks and ids are isolated fixtures',() => { const clock=new FixedClock(); const first=clock.now(); first.setFullYear(2000); assert.equal(clock.now().toISOString(),'2026-09-24T00:00:00.000Z'); assert.equal(new SequenceIds().next(),'fixture_1'); assert.equal(new SequenceIds().next(),'fixture_1'); assert.throws(() => new FixedClock('bad')); });
-test('structured secrets are recursively redacted',() => { const input={token:'fixture-secret',nest:{api_key:'fixture-key',name:'visible'},rows:[{password:'hidden'}]}; assert.deepEqual(redact(input),{token:'[REDACTED]',nest:{api_key:'[REDACTED]',name:'visible'},rows:[{password:'[REDACTED]'}]}); assert.equal(input.token,'fixture-secret'); });
-test('cyclic log objects are bounded',() => { const value={}; value.self=value; assert.match(JSON.stringify(redact(value)),/TRUNCATED/); });
-test('error envelope has no raw exception details',() => assert.deepEqual(apiError('failed','Service error','trace'),{code:'failed',message:'Service error',details:{},trace_id:'trace',retryable:false}));
-test('bootstrap parser rejects false capabilities and duplicate model ids',() => { assert.equal(isBootstrap(fixture),true); assert.equal(isBootstrap({...fixture,capabilities:{...fixture.capabilities,execution:true}}),false); assert.equal(isBootstrap({...fixture,runtimes:[fixture.runtimes[0],fixture.runtimes[0]]}),false); assert.equal(isBootstrap({...fixture,schema_version:'2.0'}),false); });
-test('client uses read-only same-origin request and validates response',async () => { let calls=0; const api=createClient({fetcher:async(url,opts)=>{calls++; assert.equal(url,'/api/v1/system/bootstrap'); assert.equal(opts.method,'GET'); assert.equal(opts.credentials,'same-origin'); return Response.json(fixture);}}); assert.deepEqual(await api.bootstrap(),fixture); assert.equal(calls,1); });
-test('client rejects malformed and incompatible responses',async () => { await assert.rejects(createClient({fetcher:async()=>new Response('<html>')}).bootstrap(),{code:'invalid_response'}); await assert.rejects(createClient({fetcher:async()=>Response.json({})}).bootstrap(),{code:'contract_mismatch'}); });
-test('client error never renders remote raw error text',async () => { await assert.rejects(createClient({fetcher:async()=>Response.json({code:'unavailable',message:'secret-fixture',details:{},trace_id:'t1',retryable:true},{status:503})}).bootstrap(),error=>error.code==='unavailable' && !error.message.includes('secret-fixture') && error.traceId==='t1'); });
-test('client handles network failure without exposing exception',async () => { await assert.rejects(createClient({fetcher:async()=>{throw new Error('fixture-secret');}}).bootstrap(),{code:'network_unavailable'}); });
-test('client propagates caller cancellation',async () => { const c=new AbortController(); c.abort(new Error('cancelled-by-test')); await assert.rejects(createClient({fetcher:async(_url,options)=>{options.signal.throwIfAborted(); return Response.json(fixture);}}).bootstrap(c.signal),/cancelled-by-test/); });
-test('domain cannot import providers, UI or database via static, dynamic or export',() => { const root=path.resolve('/tmp/domain'); for(const code of ["import x from '@zentwine/ui';","export * from '@zentwine/db';","const x = import('@anthropic-ai/claude-agent-sdk');","const x = require('pg');","import('node:fs');","import(path);"]) assert.ok(inspectSource('@zentwine/domain',path.join(root,'src/a.ts'),code,root).length>0); });
-test('cross-package relative imports cannot bypass policy',() => assert.ok(inspectSource('@zentwine/domain','/tmp/domain/src/a.ts',"import '../../api/src/main.js';",'/tmp/domain').length>0));
-test('same-package helpers and declared client contracts allowed',() => { assert.equal(inspectSource('@zentwine/domain','/tmp/domain/src/a.ts',"import './helper.js';",'/tmp/domain').length,0); assert.equal(inspectSource('@zentwine/client','/tmp/client/src/a.ts',"import { x } from '@zentwine/contracts';",'/tmp/client').length,0); });
-test('actual workspace graph is valid',() => assert.deepEqual(checkBoundaries(),[]));
+import test from "node:test";
+import assert from "node:assert/strict";
+import path from "node:path";
+import { parseConfig } from "../packages/config/dist/index.js";
+import {
+  workspacePath,
+  isBootstrap,
+} from "../packages/contracts/dist/index.js";
+import { matchesRevision } from "../packages/domain/dist/index.js";
+import { redact, apiError } from "../packages/telemetry/dist/index.js";
+import { FixedClock, SequenceIds } from "../packages/testkit/dist/index.js";
+import { createClient } from "../packages/client/dist/index.js";
+import {
+  inspectSource,
+  checkBoundaries,
+} from "../scripts/check-boundaries.mjs";
+const fixture = {
+  schema_version: "0.1.0",
+  product: "Zentwine",
+  mode: "development-bootstrap",
+  server_time: "2026-09-24T00:00:00Z",
+  capabilities: {
+    management_shell: true,
+    studio_shell: true,
+    identity: false,
+    execution: false,
+    persistence: false,
+  },
+  runtimes: [
+    { id: "claude", state: "not_connected" },
+    { id: "codex", state: "not_connected" },
+  ],
+};
+test("config defaults are loopback-only and immutable", () => {
+  const env = Object.freeze({});
+  assert.deepEqual(parseConfig(env), {
+    mode: "development",
+    host: "127.0.0.1",
+    port: 4100,
+  });
+});
+test("production mode cannot silently expose the bootstrap", () =>
+  assert.throws(() => parseConfig({ NODE_ENV: "production" }), /NODE_ENV/));
+test("non-loopback host denied", () =>
+  assert.throws(
+    () => parseConfig({ ZENTWINE_HOST: "0.0.0.0" }),
+    /ZENTWINE_HOST/,
+  ));
+test("port validation does not echo supplied secrets", () => {
+  for (const value of ["0", "65536", "NaN", "4100x", "secret-fixture"])
+    assert.throws(
+      () => parseConfig({ ZENTWINE_API_PORT: value }),
+      (error) =>
+        error.message.includes("ZENTWINE_API_PORT") &&
+        !error.message.includes(value),
+    );
+});
+test("deep links validate identifiers", () => {
+  assert.equal(
+    workspacePath("org_1", "ws-1"),
+    "/org/org_1/studio/workspaces/ws-1",
+  );
+  for (const value of ["../root", "a/b", "a?token=x", "", "x".repeat(81)])
+    assert.throws(() => workspacePath("org", value));
+});
+test("revision match requires id, revision and hash", () => {
+  const a = { id: "spec_1", revision: 2, content_hash: "abc" };
+  assert.equal(matchesRevision(a, { ...a }), true);
+  assert.equal(matchesRevision(a, { ...a, revision: 3 }), false);
+  assert.equal(matchesRevision(a, { ...a, content_hash: "def" }), false);
+});
+test("fixed clocks and ids are isolated fixtures", () => {
+  const clock = new FixedClock();
+  const first = clock.now();
+  first.setFullYear(2000);
+  assert.equal(clock.now().toISOString(), "2026-09-24T00:00:00.000Z");
+  assert.equal(new SequenceIds().next(), "fixture_1");
+  assert.equal(new SequenceIds().next(), "fixture_1");
+  assert.throws(() => new FixedClock("bad"));
+});
+test("structured secrets are recursively redacted", () => {
+  const input = {
+    token: "fixture-secret",
+    nest: { api_key: "fixture-key", name: "visible" },
+    rows: [{ password: "hidden" }],
+  };
+  assert.deepEqual(redact(input), {
+    token: "[REDACTED]",
+    nest: { api_key: "[REDACTED]", name: "visible" },
+    rows: [{ password: "[REDACTED]" }],
+  });
+  assert.equal(input.token, "fixture-secret");
+});
+test("cyclic log objects are bounded", () => {
+  const value = {};
+  value.self = value;
+  assert.match(JSON.stringify(redact(value)), /TRUNCATED/);
+});
+test("error envelope has no raw exception details", () =>
+  assert.deepEqual(apiError("failed", "Service error", "trace"), {
+    code: "failed",
+    message: "Service error",
+    details: {},
+    trace_id: "trace",
+    retryable: false,
+  }));
+test("bootstrap parser rejects false capabilities and duplicate model ids", () => {
+  assert.equal(isBootstrap(fixture), true);
+  assert.equal(
+    isBootstrap({
+      ...fixture,
+      capabilities: { ...fixture.capabilities, execution: true },
+    }),
+    false,
+  );
+  assert.equal(
+    isBootstrap({
+      ...fixture,
+      runtimes: [fixture.runtimes[0], fixture.runtimes[0]],
+    }),
+    false,
+  );
+  assert.equal(isBootstrap({ ...fixture, schema_version: "2.0" }), false);
+});
+test("client uses read-only same-origin request and validates response", async () => {
+  let calls = 0;
+  const api = createClient({
+    fetcher: async (url, opts) => {
+      calls++;
+      assert.equal(url, "/api/v1/system/bootstrap");
+      assert.equal(opts.method, "GET");
+      assert.equal(opts.credentials, "same-origin");
+      return Response.json(fixture);
+    },
+  });
+  assert.deepEqual(await api.bootstrap(), fixture);
+  assert.equal(calls, 1);
+});
+test("client rejects malformed and incompatible responses", async () => {
+  await assert.rejects(
+    createClient({ fetcher: async () => new Response("<html>") }).bootstrap(),
+    { code: "invalid_response" },
+  );
+  await assert.rejects(
+    createClient({ fetcher: async () => Response.json({}) }).bootstrap(),
+    { code: "contract_mismatch" },
+  );
+});
+test("client error never renders remote raw error text", async () => {
+  await assert.rejects(
+    createClient({
+      fetcher: async () =>
+        Response.json(
+          {
+            code: "unavailable",
+            message: "secret-fixture",
+            details: {},
+            trace_id: "t1",
+            retryable: true,
+          },
+          { status: 503 },
+        ),
+    }).bootstrap(),
+    (error) =>
+      error.code === "unavailable" &&
+      !error.message.includes("secret-fixture") &&
+      error.traceId === "t1",
+  );
+});
+test("client handles network failure without exposing exception", async () => {
+  await assert.rejects(
+    createClient({
+      fetcher: async () => {
+        throw new Error("fixture-secret");
+      },
+    }).bootstrap(),
+    { code: "network_unavailable" },
+  );
+});
+test("client propagates caller cancellation", async () => {
+  const c = new AbortController();
+  c.abort(new Error("cancelled-by-test"));
+  await assert.rejects(
+    createClient({
+      fetcher: async (_url, options) => {
+        options.signal.throwIfAborted();
+        return Response.json(fixture);
+      },
+    }).bootstrap(c.signal),
+    /cancelled-by-test/,
+  );
+});
+test("domain cannot import providers, UI or database via static, dynamic or export", () => {
+  const root = path.resolve("/tmp/domain");
+  for (const code of [
+    "import x from '@zentwine/ui';",
+    "export * from '@zentwine/db';",
+    "const x = import('@anthropic-ai/claude-agent-sdk');",
+    "const x = require('pg');",
+    "import('node:fs');",
+    "import(path);",
+  ])
+    assert.ok(
+      inspectSource("@zentwine/domain", path.join(root, "src/a.ts"), code, root)
+        .length > 0,
+    );
+});
+test("cross-package relative imports cannot bypass policy", () =>
+  assert.ok(
+    inspectSource(
+      "@zentwine/domain",
+      "/tmp/domain/src/a.ts",
+      "import '../../api/src/main.js';",
+      "/tmp/domain",
+    ).length > 0,
+  ));
+test("same-package helpers and declared client contracts allowed", () => {
+  assert.equal(
+    inspectSource(
+      "@zentwine/domain",
+      "/tmp/domain/src/a.ts",
+      "import './helper.js';",
+      "/tmp/domain",
+    ).length,
+    0,
+  );
+  assert.equal(
+    inspectSource(
+      "@zentwine/client",
+      "/tmp/client/src/a.ts",
+      "import { x } from '@zentwine/contracts';",
+      "/tmp/client",
+    ).length,
+    0,
+  );
+});
+test("actual workspace graph is valid", () =>
+  assert.deepEqual(checkBoundaries(), []));

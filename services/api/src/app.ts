@@ -34,11 +34,19 @@ export function buildApp(options: AppOptions = {}) {
     reply.header("x-request-id", request.id);
     const host = request.headers.host;
     if (host && !/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) {
-      const body = apiError("forbidden", "Local development access only", request.id);
+      const body = apiError(
+        "forbidden",
+        "Local development access only",
+        request.id,
+      );
       return reply.code(403).send(body);
     }
     if (request.headers["sec-fetch-site"] === "cross-site") {
-      const body = apiError("forbidden", "Cross-site access denied", request.id);
+      const body = apiError(
+        "forbidden",
+        "Cross-site access denied",
+        request.id,
+      );
       return reply.code(403).send(body);
     }
   });
