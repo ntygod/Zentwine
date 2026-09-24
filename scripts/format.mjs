@@ -23,8 +23,8 @@ function walk(dir) {
   }
 }
 for (const dir of ["apps", "services/api", "packages", "tests"]) walk(dir);
-for (const name of fs.readdirSync("scripts"))
-  if (name.endsWith(".mjs")) files.push(path.join("scripts", name));
+walk("scripts");
+walk("quality");
 const result = spawnSync(
   process.execPath,
   [

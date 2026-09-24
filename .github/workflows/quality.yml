@@ -1,0 +1,116 @@
+name: Zentwine quality
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - name: Select the explicit comparison baseline
+        env:
+          BASE_INPUT: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          mkdir -p reports
+          base="$BASE_INPUT"
+          if [[ ! "$base" =~ ^[a-f0-9]{40}$ || "$base" == 0000000000000000000000000000000000000000 ]]; then base=$(git rev-parse HEAD^1); fi
+          git cat-file -e "$base^{commit}"
+          echo "QUALITY_BASE_REF=$base" >> "$GITHUB_ENV"
+          printf '%s\n' "$base" > reports/comparison-base.txt
+      - name: Scan tracked credentials before installing application dependencies
+        run: python3 scripts/quality/gate.py secrets --output reports/secret-scan.json
+      - name: Install fixed validation tools and frozen workspace
+        run: |
+          python3 -m venv /tmp/zt-quality-venv
+          /tmp/zt-quality-venv/bin/pip install --disable-pip-version-check -r quality/requirements.txt
+          /tmp/zt-quality-venv/bin/pip freeze > reports/python-validation-packages.txt
+          echo "/tmp/zt-quality-venv/bin" >> "$GITHUB_PATH"
+          npm install --global pnpm@11.10.0 --ignore-scripts
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Preserve required test bodies and reject focused or skipped cases
+        run: pnpm test:integrity 2>&1 | tee reports/test-integrity.json
+      - name: Check workflow structure, fixed dependencies and migration history
+        run: |
+          python3 scripts/quality/gate.py workflows --output reports/workflow-policy.json
+          python3 scripts/quality/gate.py dependencies --output reports/dependency-policy.json
+          pnpm migration-check --output reports/migration-policy.json
+      - name: Check actual and planned contracts with positive and negative examples
+        run: pnpm contract-check --output reports/contract-check.json
+      - name: Exercise rejection paths of the quality checks
+        run: pnpm test:quality 2>&1 | tee reports/quality-tests.log
+      - name: Record live model verification separately
+        run: pnpm test:live --output reports/live-status.json
+      - name: Verify immutable tracked source
+        run: git diff --exit-code
+      - name: Package and hash quality evidence
+        if: always()
+        env:
+          JOB_RESULT: ${{ job.status }}
+        run: |
+          mkdir -p reports
+          git rev-parse HEAD > reports/tested-commit.txt
+          python3 scripts/quality/gate.py manifest --directory reports --suite policy --job-status "$JOB_RESULT" --output reports/artifact-manifest.json
+          python3 scripts/quality/gate.py verify-manifest --directory reports --expected-commit "$(git rev-parse HEAD)"
+      - name: Upload quality evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quality-evidence
+          path: reports/
+          if-no-files-found: error
+          retention-days: 14
+  engineering:
+    needs: policy
+    uses: ./.github/workflows/validate-foundation.yml
+  database:
+    needs: policy
+    uses: ./.github/workflows/validate-testkit.yml
+  durability:
+    needs: policy
+    uses: ./.github/workflows/validate-durable-spike.yml
+  documentation:
+    needs: policy
+    uses: ./.github/workflows/validate-plans.yml
+  quality-gate:
+    name: quality-gate
+    if: ${{ always() }}
+    needs: [policy, engineering, database, durability, documentation]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Fail closed unless every required job succeeded
+        env:
+          QUALITY_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/quality/gate.py aggregate --output reports/quality-gate.json
+      - name: Publish a scoped summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Zentwine engineering quality gate'
+            echo 'All required jobs must succeed; skipped, cancelled and missing jobs fail the gate.'
+            echo 'Live model verification is separate. No model adapter is implemented; Fake results never satisfy live acceptance.'
+            echo 'This is not production-release approval.'
+            if test -f reports/quality-gate.json; then cat reports/quality-gate.json; fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,8 +1,6 @@
 name: Validate engineering foundation
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
@@ -19,6 +17,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.21.0'
@@ -85,11 +84,18 @@ jobs:
             tar -czf reports/web-build.tar.gz apps/workbench/dist apps/studio/dist
           fi
           printf '%s\n' 'Exact checked-in source. Local engineering foundation only; no live models, business identity, persistent workspace, code editing or production release verified.' > reports/SCOPE.txt
+      - name: Hash and verify the engineering artifact
+        if: always()
+        env:
+          JOB_RESULT: ${{ job.status }}
+        run: |
+          python3 scripts/quality/gate.py manifest --directory reports --suite engineering --job-status "$JOB_RESULT" --output reports/artifact-manifest.json
+          python3 scripts/quality/gate.py verify-manifest --directory reports --expected-commit "$(git rev-parse HEAD)"
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: zt01-02-foundation-evidence
+          name: engineering-evidence
           path: reports/
           retention-days: 14
           if-no-files-found: error
