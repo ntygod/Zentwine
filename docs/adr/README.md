@@ -14,3 +14,6 @@
 | [ADR-008](ADR-008-isolated-testkit.md) | Accepted（测试基础） | FakeRuntime、租户Fixture、独立临时PG库与测试清理 |
 
 未明确接受的提案不自动变成已实现能力。可使用 [ADR 模板](../templates/adr.md)。
+
+- [ADR-009 质量门禁](ADR-009-quality-gates.md)：仓库门禁、制品摘要与平台权限边界。
+- [ADR-010 本地开发生命周期](ADR-010-local-development-lifecycle.md)：统一环境、清理边界、诊断与故障入口。

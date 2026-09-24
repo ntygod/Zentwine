@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { assertLocalMode, localEnvironment } from "./local/process.mjs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +13,7 @@ function launch(command, args, cwd = root) {
     detached: process.platform !== "win32",
     shell: process.platform === "win32" && command.endsWith(".cmd"),
     env: {
-      ...process.env,
+      ...localEnvironment(process.env),
       NODE_ENV: "development",
       ZENTWINE_HOST: "127.0.0.1",
       ZENTWINE_API_PORT: "4100",
@@ -23,50 +24,54 @@ function launch(command, args, cwd = root) {
     console.error("Unable to start a development process");
     shutdown(1);
   });
-  child.once("exit", () => children.delete(child));
+  child.once("exit", () => {
+    if (groupAlive(child.pid)) {
+      try {
+        process.kill(-child.pid, "SIGTERM");
+      } catch {
+        /* Already exited. */
+      }
+    }
+    if (!groupAlive(child.pid)) children.delete(child);
+  });
   return child;
 }
-function shutdown(code = 0) {
+function groupAlive(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch (error) {
+    return error.code !== "ESRCH";
+  }
+}
+async function shutdown(code = 0) {
   if (stopping) return;
   stopping = true;
   const running = [...children];
   for (const child of running)
     if (child.pid) {
-      if (process.platform === "win32")
-        spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-          stdio: "ignore",
-        });
-      else {
-        try {
-          process.kill(-child.pid, "SIGTERM");
-        } catch {
-          /* Already exited. */
-        }
+      try {
+        process.kill(-child.pid, "SIGTERM");
+      } catch {
+        /* Already exited. */
       }
     }
-  const force = setTimeout(() => {
-    for (const child of running)
-      if (child.pid && process.platform !== "win32") {
-        try {
-          process.kill(-child.pid, "SIGKILL");
-        } catch {
-          /* Already exited. */
-        }
-      }
-    process.exit(code);
-  }, 5000);
-  Promise.all(
-    running.map((child) =>
-      child.exitCode !== null
-        ? Promise.resolve()
-        : new Promise((resolve) => child.once("exit", resolve)),
-    ),
+  const deadline = Date.now() + 2500;
+  while (
+    Date.now() < deadline &&
+    running.some((child) => groupAlive(child.pid))
   )
-    .then(() => {
-      clearTimeout(force);
-      process.exit(code);
-    })
-    .catch(() => process.exit(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  for (const child of running)
+    if (groupAlive(child.pid)) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        /* Already exited. */
+      }
+    }
+  process.exit(code);
 }
 process.once("SIGINT", () => shutdown());
 process.once("SIGTERM", () => shutdown());
@@ -94,6 +99,13 @@ async function wait(url) {
   throw new Error("Development services did not become live");
 }
 async function main() {
+  assertLocalMode();
+  if (
+    process.argv
+      .slice(2)
+      .some((arg) => !["--no-build", "--preview"].includes(arg))
+  )
+    throw new Error("Invalid development command");
   for (const port of [4100, 5173, 5174]) await freePort(port);
   if (!process.argv.includes("--no-build")) {
     const child = launch(process.platform === "win32" ? "pnpm.cmd" : "pnpm", [

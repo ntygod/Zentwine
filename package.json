@@ -31,7 +31,15 @@
     "secret-check": "python3 scripts/quality/gate.py secrets",
     "test:quality": "node --test tests/quality/*.test.mjs && python3 -m unittest discover -s tests/quality -p \"test_*.py\" -v",
     "test:live": "python3 scripts/quality/gate.py live-status",
-    "quality:check": "pnpm test:integrity && pnpm secret-check && pnpm contract-check && pnpm migration-check && python3 scripts/quality/gate.py workflows && python3 scripts/quality/gate.py dependencies && pnpm test:quality"
+    "quality:check": "pnpm test:integrity && pnpm secret-check && pnpm contract-check && pnpm migration-check && python3 scripts/quality/gate.py workflows && python3 scripts/quality/gate.py dependencies && pnpm test:quality",
+    "env:up": "node scripts/environment.mjs up",
+    "env:status": "node scripts/environment.mjs status",
+    "env:down": "node scripts/environment.mjs down",
+    "tools:prepare": "node scripts/prepare-tools.mjs",
+    "drill": "node scripts/drill.mjs",
+    "test:development": "node --test tests/development.test.mjs",
+    "test:environment": "node --test tests/development/stack.test.mjs tests/development/recovery.test.mjs",
+    "test:dev-lifecycle": "node --test tests/development/launch.test.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",

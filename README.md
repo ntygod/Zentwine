@@ -46,7 +46,7 @@ python scripts/validate_plans.py
 
 - [完整规划](docs/README.md)
 - [开发状态](docs/tasks/status.md)
-- [最新实施说明](docs/tasks/ZT01-05-execution.md)
+- [最新实施说明](docs/tasks/ZT01-06-execution.md)
 - [架构与决策](docs/adr/README.md)
 - [本地环境与版本](docs/development/foundation.md)
 - [仓库协作约定](AGENTS.md)
@@ -62,3 +62,9 @@ python scripts/validate_plans.py
 ### 工程质量门禁（ZT01-05）
 
 安装 `quality/requirements.txt` 中的 Python 检查依赖并完成构建后，运行 `pnpm quality:check`。数据库迁移演练使用 `pnpm test:migrations`，必须接入专用临时测试库；真实模型验证状态用 `pnpm test:live` 单独查看。完整说明见 [质量门禁指南](docs/development/quality-gates.md)。
+
+## 统一开发与故障环境（ZT01-06）
+
+新成员从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始。`pnpm doctor --profile fresh --json` 检查安装前置；`pnpm env:up/status/down` 管理独立合成基础设施；`pnpm drill --suite database` 自动启动专用环境、验证并清理；`pnpm tools:prepare` 明确准备固定Temporal工具后可运行 `pnpm drill --suite durability`。
+
+完整命令、安全边界、离线与SIGKILL恢复见 [统一环境指南](docs/development/local-environment.md)。数据库使用临时存储，不用于保存真实业务。普通 `pnpm dev` 仍不需要Docker或模型密钥。

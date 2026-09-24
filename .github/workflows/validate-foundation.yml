@@ -23,6 +23,8 @@ jobs:
           node-version: '24.21.0'
       - name: Install pinned package manager
         run: npm install --global pnpm@11.10.0 --ignore-scripts
+      - name: Diagnose a clean checkout before dependencies or builds
+        run: node scripts/doctor.mjs --profile fresh --json
       - name: Install frozen dependencies
         run: |
           mkdir -p reports
@@ -30,6 +32,8 @@ jobs:
           node --version > reports/node-version.txt
           pnpm --version > reports/pnpm-version.txt
           sha256sum pnpm-lock.yaml > reports/lock-sha256.txt
+      - name: Verify warm-cache offline install and cold-cache refusal
+        run: node scripts/check-offline-install.mjs 2>&1 | tee reports/offline-install.log
       - name: Verify checked-in formatting without rewriting files
         run: pnpm format:check
       - name: Check, build and test
@@ -67,6 +71,8 @@ jobs:
             console.log(`PASS: port ${port} released after browser tests`);
           }
           JS
+      - name: Verify real development startup, port conflict and cancellation
+        run: pnpm test:dev-lifecycle 2>&1 | tee reports/development-lifecycle.log
       - name: Check dependency advisories and record license metadata
         run: |
           pnpm audit --audit-level high --json > reports/dependency-audit.json
