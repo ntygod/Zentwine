@@ -37,8 +37,10 @@ jobs:
         run: pnpm check 2>&1 | tee reports/check.log
       - name: Check formatting
         run: pnpm format:check
-      - name: Install browser for real UI tests
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install browser and Chinese UI fonts
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          sudo apt-get install --yes fonts-noto-cjk
       - name: Test built workbench and standalone Studio
         run: pnpm test:e2e 2>&1 | tee reports/browser-tests.log
       - name: Check dependency advisories
