@@ -46,7 +46,7 @@ python scripts/validate_plans.py
 
 - [完整规划](docs/README.md)
 - [开发状态](docs/tasks/status.md)
-- [最新实施说明](docs/tasks/ZT01-04-execution.md)
+- [最新实施说明](docs/tasks/ZT01-05-execution.md)
 - [架构与决策](docs/adr/README.md)
 - [本地环境与版本](docs/development/foundation.md)
 - [仓库协作约定](AGENTS.md)
