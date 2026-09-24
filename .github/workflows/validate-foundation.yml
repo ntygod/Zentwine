@@ -1,9 +1,8 @@
 name: Validate engineering foundation
 on:
   push:
-    branches: [feat/ZT01-02-engineering-foundation]
+    branches: [main]
   pull_request:
-    paths: ['apps/**','services/**','packages/**','tests/**','scripts/*.mjs','package.json','pnpm*','tsconfig*','playwright.config.ts','.npmrc','.github/workflows/validate-foundation.yml']
 permissions:
   contents: read
 concurrency:
@@ -25,41 +24,67 @@ jobs:
           node-version: '24.21.0'
       - name: Install pinned package manager
         run: npm install --global pnpm@11.10.0 --ignore-scripts
-      - name: Install dependencies
+      - name: Install frozen dependencies
         run: |
           mkdir -p reports
-          if test -f pnpm-lock.yaml; then pnpm install --frozen-lockfile; else pnpm install --no-frozen-lockfile; fi
+          pnpm install --frozen-lockfile
           node --version > reports/node-version.txt
           pnpm --version > reports/pnpm-version.txt
-      - name: Normalize new scaffold with pinned formatter
-        run: pnpm format
+          sha256sum pnpm-lock.yaml > reports/lock-sha256.txt
+      - name: Verify checked-in formatting without rewriting files
+        run: pnpm format:check
       - name: Check, build and test
         run: pnpm check 2>&1 | tee reports/check.log
-      - name: Check formatting
-        run: pnpm format:check
+      - name: Check documentation after dependency installation
+        run: pnpm docs:check 2>&1 | tee reports/docs-check.log
+      - name: Check environment diagnostics
+        run: pnpm doctor 2>&1 | tee reports/doctor.log
       - name: Install browser and Chinese UI fonts
         run: |
           pnpm exec playwright install --with-deps chromium
           sudo apt-get install --yes fonts-noto-cjk
       - name: Test built workbench and standalone Studio
         run: pnpm test:e2e 2>&1 | tee reports/browser-tests.log
-      - name: Check dependency advisories
-        run: pnpm audit --audit-level high --json > reports/dependency-audit.json
-      - name: Package source and evidence
+      - name: Verify development processes release every port
+        run: |
+          node --input-type=module - <<'JS' | tee reports/process-cleanup.log
+          import net from 'node:net';
+          const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+          async function canListen(port) {
+            return new Promise(resolve => {
+              const server = net.createServer();
+              server.once('error', () => resolve(false));
+              server.listen(port, '127.0.0.1', () => server.close(() => resolve(true)));
+            });
+          }
+          for (const port of [4100, 5173, 5174]) {
+            const deadline = Date.now() + 5000;
+            let released = await canListen(port);
+            while (!released && Date.now() < deadline) {
+              await delay(100);
+              released = await canListen(port);
+            }
+            if (!released) throw new Error(`Development process leaked port ${port}`);
+            console.log(`PASS: port ${port} released after browser tests`);
+          }
+          JS
+      - name: Check dependency advisories and record license metadata
+        run: |
+          pnpm audit --audit-level high --json > reports/dependency-audit.json
+          pnpm licenses list --json > reports/dependency-licenses.json
+      - name: Verify build and tests did not modify tracked sources
+        run: git diff --exit-code
+      - name: Package exact source and evidence
         if: always()
         run: |
           mkdir -p reports
           git rev-parse HEAD > reports/tested-commit.txt
           git archive --format=zip HEAD -o reports/source.zip
-          if test -f pnpm-lock.yaml; then cp pnpm-lock.yaml reports/pnpm-lock.yaml; fi
-          python3 - <<'PY'
-          import json, subprocess, pathlib
-          files = subprocess.check_output(['git','diff','--name-only','-z']).decode().split('\0')
-          allowed=lambda p: p in ['package.json','pnpm-workspace.yaml','tsconfig.base.json','playwright.config.ts'] or p.startswith(('apps/','services/api/','packages/','tests/','scripts/')) and pathlib.Path(p).suffix in ['.ts','.tsx','.mjs','.json','.css','.html']
-          changed={p:pathlib.Path(p).read_text() for p in files if p and allowed(p)}
-          pathlib.Path('reports/formatted-files.json').write_text(json.dumps(changed,ensure_ascii=False))
-          PY
-          printf '%s\n' 'Engineering scaffold only. No live Agent, identity, persistence or production release verified. First normalization is captured separately from git source.' > reports/SCOPE.txt
+          cp pnpm-lock.yaml reports/pnpm-lock.yaml
+          if test -d apps/workbench/dist && test -d apps/studio/dist; then
+            tar -czf reports/web-build.tar.gz apps/workbench/dist apps/studio/dist
+          fi
+          printf '%s\n' 'Exact checked-in source. Local engineering foundation only; no live models, business identity, persistent workspace, code editing or production release verified.' > reports/SCOPE.txt
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
