@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: zt_fixture_password_only
       POSTGRES_DB: zentwine_test_control
     ports:
-      - "127.0.0.1:55432:5432"
+      - "127.0.0.1:${ZENTWINE_TEST_PORT:-55432}:5432"
     tmpfs:
       - /var/lib/postgresql/data
     volumes:

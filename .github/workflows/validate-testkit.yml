@@ -26,7 +26,6 @@ jobs:
     env:
       NODE_ENV: test
       ZENTWINE_TEST_DATABASE_ACK: disposable-local-only
-      ZENTWINE_TEST_DATABASE_URL: postgres://zt_test_admin:zt_fixture_password_only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/zentwine_test_control
     defaults:
       run:
         shell: bash
@@ -37,6 +36,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.21.0'
+      - name: Resolve the disposable service endpoint after the job starts
+        env:
+          TEST_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          [[ "$TEST_PORT" =~ ^[0-9]+$ ]]
+          echo "ZENTWINE_TEST_DATABASE_URL=postgres://zt_test_admin:zt_fixture_password_only@127.0.0.1:$TEST_PORT/zentwine_test_control" >> "$GITHUB_ENV"
       - name: Install exact test dependencies and build
         run: |
           mkdir -p reports
@@ -67,6 +72,17 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Verify documented Compose startup, tests and cleanup
+        run: |
+          project="zt04-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export ZENTWINE_TEST_PORT=0
+          trap 'docker compose -p "$project" -f infra/testkit/compose.yml down --volumes' EXIT
+          docker compose -p "$project" -f infra/testkit/compose.yml up -d --wait
+          endpoint=$(docker compose -p "$project" -f infra/testkit/compose.yml port postgres 5432)
+          port="${endpoint##*:}"
+          [[ "$port" =~ ^[0-9]+$ ]]
+          export ZENTWINE_TEST_DATABASE_URL="postgres://zt_test_admin:zt_fixture_password_only@127.0.0.1:$port/zentwine_test_control"
+          pnpm test:integration 2>&1 | tee reports/compose-database-tests.log
       - name: Verify checked-in source unchanged
         run: git diff --exit-code
       - name: Package precise source and reports
