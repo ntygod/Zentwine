@@ -21,13 +21,16 @@
     "check": "pnpm lint && pnpm build && pnpm typecheck && pnpm test",
     "docs:check": "python scripts/validate_plans.py",
     "doctor": "node scripts/doctor.mjs",
-    "test:foundation": "node --test tests/foundations.test.mjs tests/logging-boundaries.test.mjs tests/observability-api.test.mjs"
+    "test:foundation": "node --test tests/foundations.test.mjs tests/logging-boundaries.test.mjs tests/observability-api.test.mjs",
+    "test:fixtures": "node --test tests/fake-runtime.test.mjs tests/fake-runtime-network.test.mjs tests/testkit-environment.test.mjs",
+    "test:integration": "node scripts/run-database-tests.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",
     "@types/node": "24.13.3",
     "@playwright/test": "1.63.0",
     "oxlint": "1.81.0",
-    "prettier": "3.6.2"
+    "prettier": "3.6.2",
+    "pg": "8.16.3"
   }
 }

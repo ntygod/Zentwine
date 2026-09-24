@@ -9,6 +9,8 @@ on:
       - 'docs/testing/zt01-01-report.md'
       - 'packages/domain/**'
       - 'packages/telemetry/**'
+      - 'packages/testkit/**'
+      - 'pnpm-lock.yaml'
 permissions:
   contents: read
 concurrency:
