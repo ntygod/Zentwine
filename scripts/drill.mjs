@@ -79,6 +79,35 @@ export async function runDrill(options, { signal, source = process.env } = {}) {
     if (result.code !== 0) throw new LocalToolError("drill_step_failed");
   };
   try {
+    const commit = await execute("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      env: localEnvironment(source),
+      signal,
+    });
+    const tree = await execute("git", ["rev-parse", "HEAD^{tree}"], {
+      cwd: ROOT,
+      env: localEnvironment(source),
+      signal,
+    });
+    const clean = await execute("git", ["diff", "--quiet", "HEAD", "--"], {
+      cwd: ROOT,
+      env: localEnvironment(source),
+      signal,
+    });
+    if (
+      commit.code !== 0 ||
+      tree.code !== 0 ||
+      !/^[a-f0-9]{40}$/.test(commit.stdout.trim()) ||
+      !/^[a-f0-9]{40}$/.test(tree.stdout.trim()) ||
+      clean.code > 1
+    )
+      throw new LocalToolError("source_provenance_unavailable");
+    summary.source = {
+      commit: commit.stdout.trim(),
+      tree: tree.stdout.trim(),
+      tracked_clean_at_start: clean.code === 0,
+      scope: "git_baseline_not_an_immutable_worktree_snapshot",
+    };
     // Inspect prerequisites before creating the Compose environment. Never install implicitly.
     if (options.suite !== "durability") {
       await fs.access(path.join(ROOT, "packages/testkit/dist/postgres.js"));
@@ -122,7 +151,11 @@ export async function runDrill(options, { signal, source = process.env } = {}) {
             path.join(ROOT, ".zentwine", "spike-reports"),
             async () => {
               const cwd = path.join(ROOT, "spikes/ZT01-01-durable-workflow");
-              const scoped = { ...env, POC_TEMPORAL_CLI: cli };
+              const scoped = {
+                ...env,
+                GITHUB_SHA: summary.source.commit,
+                POC_TEMPORAL_CLI: cli,
+              };
               await record(
                 "durability-unit",
                 process.execPath,

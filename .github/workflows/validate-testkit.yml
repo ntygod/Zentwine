@@ -102,6 +102,18 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Record the actual local developer toolchain
+        run: |
+          {
+            docker version --format 'client={{.Client.Version}} server={{.Server.Version}}'
+            docker compose version --short
+            flock --version
+            curl --version
+            tar --version
+            python3 --version
+            python3 -m pip freeze
+          } > reports/local-toolchain.txt
+          pnpm doctor --profile integration --json > reports/integration-doctor.json
       - name: Validate independent owned development environments
         run: pnpm test:environment 2>&1 | tee reports/development-environments.log
       - name: Rehearse databases through the unified self-cleaning entry

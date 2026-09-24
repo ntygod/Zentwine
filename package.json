@@ -38,7 +38,7 @@
     "tools:prepare": "node scripts/prepare-tools.mjs",
     "drill": "node scripts/drill.mjs",
     "test:development": "node --test tests/development.test.mjs",
-    "test:environment": "node --test tests/development/stack.test.mjs",
+    "test:environment": "node --test tests/development/stack.test.mjs tests/development/recovery.test.mjs",
     "test:dev-lifecycle": "node --test tests/development/launch.test.mjs"
   },
   "devDependencies": {

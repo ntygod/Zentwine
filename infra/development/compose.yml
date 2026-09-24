@@ -20,7 +20,7 @@ services:
       io.zentwine.local-owner: ${ZENTWINE_LOCAL_OWNER:?Use the local environment command}
       io.zentwine.scope: disposable-local-only
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zt_test_admin -d zentwine_test_control"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U zt_test_admin -d zentwine_test_control"]
       interval: 2s
       timeout: 3s
       retries: 25
