@@ -1,0 +1,68 @@
+name: Validate engineering foundation
+on:
+  push:
+    branches: [feat/ZT01-02-engineering-foundation]
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'services/**'
+      - 'packages/**'
+      - 'tests/**'
+      - 'scripts/*.mjs'
+      - 'package.json'
+      - 'pnpm*'
+      - 'tsconfig*'
+      - 'playwright.config.ts'
+      - '.npmrc'
+      - '.github/workflows/validate-foundation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - name: Install pinned package manager
+        run: npm install --global pnpm@11.10.0 --ignore-scripts
+      - name: Install dependencies
+        run: |
+          mkdir -p reports
+          if test -f pnpm-lock.yaml; then pnpm install --frozen-lockfile; else pnpm install --no-frozen-lockfile; fi
+          node --version > reports/node-version.txt
+          pnpm --version > reports/pnpm-version.txt
+      - name: Check, build and test
+        run: pnpm check 2>&1 | tee reports/check.log
+      - name: Install browser for real UI tests
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Test built workbench and standalone Studio
+        run: pnpm test:e2e 2>&1 | tee reports/browser-tests.log
+      - name: Check dependency advisories
+        run: pnpm audit --audit-level high --json > reports/dependency-audit.json
+      - name: Package source and evidence
+        if: always()
+        run: |
+          mkdir -p reports
+          git rev-parse HEAD > reports/tested-commit.txt
+          git archive --format=zip HEAD -o reports/source.zip
+          if test -f pnpm-lock.yaml; then cp pnpm-lock.yaml reports/pnpm-lock.yaml; fi
+          printf '%s\n' 'Engineering scaffold only. No live Agent, identity, persistence or production release verified.' > reports/SCOPE.txt
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: zt01-02-foundation-evidence
+          path: reports/
+          retention-days: 14
+          if-no-files-found: error

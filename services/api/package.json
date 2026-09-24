@@ -1,0 +1,1 @@
+{"name":"@zentwine/api","version":"0.1.0-dev.0","private":true,"type":"module","dependencies":{"@zentwine/contracts":"workspace:*","@zentwine/config":"workspace:*","@zentwine/telemetry":"workspace:*","fastify":"5.12.5"},"scripts":{"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit","start":"node dist/main.js"}}

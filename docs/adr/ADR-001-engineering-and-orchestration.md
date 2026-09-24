@@ -1,50 +1,38 @@
-# ADR-001｜工程基线与持久工作流候选
+# ADR-001｜工程基线与持久工作流
 
-状态：**Proposed**。日期：2026-09-24。关联任务：ZT01-01；Issue #2。负责人审批：待仓库负责人。技术实验可以执行，生产选型不由实现者自行改为 Accepted。
+状态：**Accepted（工程与持久流程方向）**。决定日期：2026-09-24。关联 ZT01-01 / Issue #2 / PR #3。
 
-## 背景
+决定者：根据项目负责人在项目对话中授予的完整决策权，由本次 AI 实施者作技术决定并留痕；不是额外独立人员审核。
 
-Zentwine 要支持跨模型执行、人工等待、进程失败、重复消息和代码/业务状态分离。长时间运行一个模型会话或用浏览器内存维护计划，不能作为正式持久状态设计。
+## 决定
 
-## 提议
+采用 TypeScript pnpm monorepo、模块化 Node 控制面、PostgreSQL 业务权威库、独立 Runner 与 Verifier。Temporal 作为持久流程引擎，通过 WorkflowPort 隔离，不把其状态当作业务授权。
 
-继续采用规划中的 TypeScript 主工程、模块化 Node 控制面、PostgreSQL 业务权威库、独立 Runner/Verifier；Temporal 作为可替换的持久流程候选。主工程 pnpm workspace、React/Fastify 等包选择在 ZT01-02 固定，不在本 Spike 混入产品代码。
+React / Vite 提供 Workbench 和 Studio；Fastify 提供 API。精确工程版本见 [版本与开发说明](../development/foundation.md)。前端不得直接接触供应商凭据或原始 App Server。
 
-Temporal 保存调度历史，不批准业务行为。工作流收到信号后由 Activity 再读取业务决定；数据库命令保留幂等指纹、事务 outbox。重复启动按稳定 workflowId 对账，不能在结果未知时换 ID 再启动。
+## 证据
 
-## 备选与取舍
+PR #3 的分支 `09297979ab7d2a8a57f0d52027259aa173eff657`，PR 测试提交 `4ccb1cf0052287be4290c4b1ef6ae8402c2f4ef0`，故障测试运行 `35977114973`。8 个单元测试、9 个真实 PostgreSQL/Temporal 场景通过，包括等待、SIGKILL、持久化重启、重复请求、提交后崩溃、拒绝与回放。PR #3 已合并为 `a74d81b2bd82b9fc4c6a813ef823236260689c02`。
 
-| 方案 | 取舍 | 当前决定 |
-|---|---|---|
-| Temporal + PostgreSQL | 引擎提供等待/历史/重试，需维护额外服务、历史兼容与部署能力 | 候选，先以故障实验取证 |
-| 自建 PostgreSQL 状态机 + 队列 | 部署组件较少，但需自己实现计时、等待、租约、重放、恢复等 | 保留退路，不凭没有实测就宣称性能更差 |
-| 托管专有流程服务 | 可以减少自运维，但企业私有部署、供应商耦合需进一步评估 | 暂不默认采用 |
-| 单 Agent 长会话 + 内存任务表 | 原型简单，但不能提供本计划要求的持久恢复边界 | 不作为权威控制面 |
+实验使用 Temporal 开发服务器 SQLite 历史和 PostgreSQL 业务数据，不是生产 Temporal/PostgreSQL 集群证明。详见 [实验报告](../testing/zt01-01-report.md) 和 [实验说明](../../spikes/ZT01-01-durable-workflow/README.md)。
 
-## 验证实现
+## 取舍与备选
 
-见 [Spike 说明与代码](../../spikes/ZT01-01-durable-workflow/README.md)。实现真正 PostgreSQL 事务、Temporal 开发服务器、独立 Worker SIGKILL、服务器重启、重复请求、丢失启动应答、历史回放、拒绝和取消。实验不连接真实模型。
+接受持久引擎带来的额外运维、历史兼容和部署成本，以避免自行实现全部等待、恢复和回放。PostgreSQL 状态机+队列保留为 WorkflowPort 的替换方案；没有实测比较的性能和成本不下结论。单模型长会话与浏览器内存不作为业务权威。
 
-实验实现与选择独立：CI 成功仅支持所测试的故障语义，不证明高可用、性能、成本、生产安全或所有模型兼容。业务数据库 PostgreSQL 与 Temporal 开发服务器 SQLite 是两个不同存储，绝不把 SQLite 试验等同生产 Temporal/PostgreSQL 部署。
+业务改变与 outbox 同事务，重复外部请求以稳定 operation/workflow ID 对账；不宣称任意外部动作 exactly-once。域模型、审批、预算独立于 SDK。
 
-## 批准前需要决定
+## 不包含的批准
 
-1. 是否接受新增持久引擎的运维负担，并按 WorkflowPort 隔离供应商实现。
-2. 生产 Temporal 存储、备份恢复、历史保留、加密、集群升级和私有部署条件。
-3. 代表性负载、吞吐和费用预算；本试验没有得出成本优劣结论。
-4. 工程依赖许可与产品许可证。技术清单不是法律意见，也未替仓库选择开源许可证。
-
-批准时记录负责人、日期和所依据的精确 CI commit。若实验无法稳定恢复、实际运维成本不适合或企业环境无法部署，拒绝该候选，使用保留的 WorkflowPort 实现替代方案，而不是修改业务语义以迎合引擎。
+生产存储、加密、备份、部署拓扑、性能目标、供应商商用与产品发行许可须各自落地决策和验证。本决定不允许提前部署无身份服务，不自动调用付费模型。
 
 ## 回退
 
-本 PR 仅增加隔离 Spike、提案、执行记录与测试工作流，没有生产迁移或外部业务写入。可回退该提交并关闭试验；保留历史测试作为决策证据。未来主工程不应直接导入 Spike 内的简化身份和授权代码。
+当前 Spike 隔离在 spikes/；主工程不引用其实验授权逻辑。若企业环境或运维证据否定 Temporal，保留业务契约替换 WorkflowPort，记录新 ADR；不能削弱授权与幂等语义。
 
-## 官方依据（核对日期：2026-09-24）
+## 官方资料
 
-- [Node 发布支持状态](https://nodejs.org/en/about/previous-releases)：选择受支持 LTS，不把 Node Current 自动当成生产基线。
-- [Temporal TypeScript SDK 1.24.0](https://github.com/temporalio/sdk-typescript/releases/tag/v1.24.0)：本试验锁定 SDK 系列。
-- [Temporal 测试与历史回放](https://docs.temporal.io/develop/typescript/best-practices/testing-suite)：区分 Mock、集成与真实服务验证。
-- [TestWorkflowEnvironment](https://typescript.temporal.io/api/classes/testing.TestWorkflowEnvironment)：createLocal 支持指定 CLI、持久化开发数据库与外部 Worker 连接。
-- [PostgreSQL 支持版本](https://www.postgresql.org/support/versioning/)：17.11 属于本次核对的受支持系列补丁。
-- [node-postgres 事务](https://node-postgres.com/features/transactions)：同一事务使用同一个 client。
+- [Node 支持周期](https://nodejs.org/en/about/previous-releases)
+- [Temporal SDK 1.24.0](https://github.com/temporalio/sdk-typescript/releases/tag/v1.24.0)
+- [Temporal 测试](https://docs.temporal.io/develop/typescript/best-practices/testing-suite)
+- [PostgreSQL 支持政策](https://www.postgresql.org/support/versioning/)
