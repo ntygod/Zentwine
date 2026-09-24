@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentwine.invalid/contracts/flow/1.0",
+  "title": "Zentwine flow design draft; graph and authorization checks are additional",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "fixture_only", "flow_id", "mission_id", "context_snapshot_id", "nodes"],
+  "properties": {
+    "schema_version": {"const": "1.0"}, "fixture_only": {"type": "boolean"},
+    "flow_id": {"type": "string", "minLength": 1}, "mission_id": {"type": "string", "minLength": 1},
+    "context_snapshot_id": {"type": "string", "minLength": 1},
+    "nodes": {"type": "array", "minItems": 2, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "depends_on", "required", "owner"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["agent", "verification", "human_approval"]},
+        "depends_on": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "required": {"type": "boolean"}, "owner": {"type": "string", "minLength": 1},
+        "workspace_id": {"type": "string"},
+        "runtime_id": {"type": "string"}, "provider": {"type": "string"}, "model_id": {"type": "string"},
+        "produces": {"type": "array", "items": {"type": "string"}},
+        "join": {"enum": ["all"]}, "approval_scope": {"type": "string"}
+      },
+      "allOf": [{"if": {"properties": {"kind": {"const": "agent"}}}, "then": {"required": ["workspace_id", "runtime_id", "provider", "model_id", "produces"]}}]
+    }}
+  }
+}

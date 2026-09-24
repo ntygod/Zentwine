@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0", "fixture_only": true,
+  "org_id": "org-demo", "run_id": "run-backend-demo", "task_id": "task-invitation-backend",
+  "context_snapshot_id": "context-invitation-v4-demo",
+  "model_binding": {"provider": "anthropic", "requested_model_id": "demo-model-a", "runtime_id": "claude-agent-sdk", "adapter_version": "unverified-demo"},
+  "workspace_id": "workspace-backend-demo", "lease_epoch": 3,
+  "policy_snapshot_id": "policy-demo-v1", "budget_reservation_id": "budget-demo-reservation",
+  "input_artifacts": [{"artifact_id": "contract-demo", "revision": 2, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]
+}

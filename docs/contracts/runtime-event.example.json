@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0", "event_id": "evt-demo-001", "org_id": "org-demo",
+  "aggregate_type": "run", "aggregate_id": "run-backend-demo", "aggregate_version": 8,
+  "event_type": "run.waiting_input",
+  "occurred_at": "2026-09-24T08:00:00Z", "recorded_at": "2026-09-24T08:00:01Z",
+  "actor": {"kind": "agent", "id": "agent-backend-demo", "on_behalf_of": "member-demo"},
+  "correlation_id": "flow-demo", "causation_id": "cmd-demo", "trace_id": "trace-demo",
+  "payload": {"approval_request_id": "approval-demo", "fixture_only": true}
+}
