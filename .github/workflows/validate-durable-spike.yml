@@ -7,6 +7,8 @@ on:
       - 'docs/adr/ADR-001*'
       - 'docs/tasks/ZT01-01-execution.md'
       - 'docs/testing/zt01-01-report.md'
+      - 'packages/domain/**'
+      - 'packages/telemetry/**'
 permissions:
   contents: read
 concurrency:

@@ -6,7 +6,7 @@ export const rules = {
   "@zentwine/domain": [],
   "@zentwine/contracts": [],
   "@zentwine/config": [],
-  "@zentwine/telemetry": ["@zentwine/contracts"],
+  "@zentwine/telemetry": ["@zentwine/contracts", "@zentwine/domain"],
   "@zentwine/client": ["@zentwine/contracts"],
   "@zentwine/testkit": ["@zentwine/domain"],
   "@zentwine/ui": ["@zentwine/client", "@zentwine/contracts", "react"],

@@ -1,3 +1,4 @@
+export { ERROR_CATALOG, isErrorCode, type ErrorCode } from "./errors.js";
 export const CONTRACT_VERSION = "0.1.0" as const;
 export const STUDIO_PATH = "/org/local/studio" as const;
 export const WORKBENCH_PATH = "/org/local/workbench" as const;
@@ -127,10 +128,15 @@ export function isApiError(value: unknown): value is ApiErrorPayload {
   return (
     record(value) &&
     typeof value["code"] === "string" &&
+    /^[a-z][a-z0-9_]{0,63}$/.test(value["code"]) &&
     typeof value["message"] === "string" &&
+    value["message"].length <= 256 &&
     typeof value["trace_id"] === "string" &&
+    /^[a-zA-Z0-9_-]{1,128}$/.test(value["trace_id"]) &&
     typeof value["retryable"] === "boolean" &&
-    record(value["details"])
+    record(value["details"]) &&
+    Object.keys(value["details"]).length === 0 &&
+    Object.keys(value).length === 5
   );
 }
 // Deep links locate resources, never authorize or start execution.

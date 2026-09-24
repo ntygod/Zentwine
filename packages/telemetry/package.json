@@ -10,7 +10,8 @@
     }
   },
   "dependencies": {
-    "@zentwine/contracts": "workspace:*"
+    "@zentwine/contracts": "workspace:*",
+    "@zentwine/domain": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
