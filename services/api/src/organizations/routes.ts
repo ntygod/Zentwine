@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   OrganizationError,
   type OrganizationRepository,
+  type OrganizationAuditQuery,
   type SettingsInput,
   type InvitationInput,
   type ConnectionInput,
@@ -10,6 +11,8 @@ import {
 } from "@zentwine/domain";
 import {
   organizationEmpty,
+  organizationAuditQuerySchema,
+  organizationAuditPageSchema,
   organizationSettingsInput,
   organizationSettingsSchema,
   organizationMemberSchema,
@@ -75,6 +78,17 @@ export async function registerOrganizationRoutes(
       limiter.take(r.ip);
     }
   });
+  app.get<{ Querystring: OrganizationAuditQuery }>(
+    "/api/v1/orgs/:orgId/audit-events",
+    {
+      schema: {
+        params: identityOrgParams,
+        querystring: organizationAuditQuerySchema,
+        response: { 200: organizationAuditPageSchema },
+      },
+    },
+    (r) => call(() => o.repository.audit(requestScope(r), r.query)),
+  );
   app.get(
     "/api/v1/orgs/:orgId/settings",
     {

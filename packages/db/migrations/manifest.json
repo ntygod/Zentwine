@@ -80,6 +80,22 @@
         "path": "packages/db/migrations/0005-organization-lifecycle.verify.sql",
         "sha256": "47a109c2adfd1cb6e2c6f47bf31624aa961a23e5fddb4651abdaec573946849b"
       }
+    },
+    {
+      "id": "0006-organization-audit-view",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0006-organization-audit-view.up.sql",
+        "sha256": "3754417da142c2dbd0883469a5043517a82c53f452d4e527513031553f506371"
+      },
+      "down": {
+        "path": "packages/db/migrations/0006-organization-audit-view.down.sql",
+        "sha256": "e98c1f8d174c86cfddf4490b65aa5754b6e64ae718ee8ede7db7192ec750417e"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0006-organization-audit-view.verify.sql",
+        "sha256": "b8c6a8b6ded6cb258e49ade007e583b676bc3bffaaa4daeb1fa0ddc968a402ea"
+      }
     }
   ]
 }
