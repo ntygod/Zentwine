@@ -7,6 +7,7 @@ import { createLogger } from "@zentwine/telemetry";
 import {
   createIdentityPool,
   PostgresIdentityRepository,
+  PostgresPolicyRepository,
   type IdentityPool,
 } from "@zentwine/db";
 import { buildApp } from "./app.js";
@@ -29,7 +30,23 @@ async function main(): Promise<void> {
     await pool?.end();
     throw error;
   }
+  let policy: PostgresPolicyRepository | undefined;
+  if (
+    process.env["ZENTWINE_POLICY_MODE"] !== undefined &&
+    process.env["ZENTWINE_POLICY_MODE"] !== "disabled"
+  ) {
+    try {
+      if (process.env["ZENTWINE_POLICY_MODE"] !== "local" || !pool || !identity)
+        throw new ConfigurationError("ZENTWINE_POLICY_MODE", "unsupported");
+      policy = new PostgresPolicyRepository(pool);
+      await policy.assertRuntimeRole();
+    } catch (e) {
+      await pool?.end();
+      throw e;
+    }
+  }
   const app = buildApp({
+    ...(policy ? { policy } : {}),
     config,
     logSink: sink,
     ...(identity && repository

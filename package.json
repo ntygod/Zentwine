@@ -43,7 +43,10 @@
     "test:identity": "node scripts/run-identity-tests.mjs",
     "test:identity-security": "node --test tests/identity-security.test.mjs",
     "identity:admin": "node scripts/identity-admin.mjs",
-    "identity:serve": "node services/api/dist/main.js"
+    "identity:serve": "node services/api/dist/main.js",
+    "test:policy": "node --test tests/policy.test.mjs",
+    "test:policy-integration": "node scripts/run-policy-tests.mjs",
+    "policy:admin": "node scripts/policy-admin.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",

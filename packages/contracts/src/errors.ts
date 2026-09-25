@@ -20,6 +20,11 @@ export const ERROR_CATALOG = Object.freeze({
     message: "Identity is not configured",
     retryable: false,
   }),
+  approval_required: Object.freeze({
+    status: 403,
+    message: "Approval required before this action can execute",
+    retryable: false,
+  }),
   forbidden: Object.freeze({
     status: 403,
     message: "Access denied",
