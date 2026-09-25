@@ -332,9 +332,34 @@ test("org PG: inviting private or foreign resources without a read grant is refu
   }));
 test("org PG: explicit target deny survives invitation and prevents successful acceptance", () =>
   fixture(async (f) => {
+    // Resource rules reference an existing membership. Exercise a revoked
+    // former member's deny, not an impossible rule for a never-member.
+    await f.admin.setMembership(
+      randomUUID(),
+      f.orgA,
+      f.charlie,
+      "MEM-3",
+      "viewer",
+      "revoked",
+    );
+    const before = await member(f, f.charlie);
     const i = await f.invite();
-    await f.add(f.charlie, f.a, { action: "resource.read", effect: "deny" });
+    const deny = await f.add(f.charlie, f.a, {
+      action: "resource.read",
+      effect: "deny",
+    });
     await assert.rejects(f.accept(i), fails("unavailable_resource"));
+    assert.deepEqual(await member(f, f.charlie), before);
+    assert.deepEqual(
+      (
+        await query(
+          f.adminPool,
+          "SELECT effect,revoked_at FROM zentwine_policy.resource_grants WHERE id=$1",
+          [deny.id],
+        )
+      ).rows,
+      [{ effect: "deny", revoked_at: null }],
+    );
     assert.equal(
       (await f.organizations.invitations(f.owner.scope))[0].state,
       "pending",
@@ -343,7 +368,7 @@ test("org PG: explicit target deny survives invitation and prevents successful a
       (
         await query(
           f.adminPool,
-          "SELECT id FROM zentwine_identity.memberships WHERE human_id=$1",
+          "SELECT id FROM zentwine_identity.memberships WHERE human_id=$1 AND status='active'",
           [f.charlie],
         )
       ).rows.length,
