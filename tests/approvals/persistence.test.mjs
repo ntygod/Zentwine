@@ -540,7 +540,7 @@ test(
             scopes: [
               {
                 resource_id: r.id,
-                actions: ["resource.update"],
+                actions: ["resource.read", "resource.update"],
                 environment: "production",
               },
             ],

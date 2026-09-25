@@ -209,3 +209,162 @@ test("approval authority: expiring reviewer resource grant cannot be reused by a
       0,
     );
   }));
+
+// The response SELECT is still inside the transaction. Holding this table tests
+// the late serialization boundary rather than only the earlier resource lock.
+async function holdReceiptView(f, start, code) {
+  const blocker = await f.adminPool.connect();
+  await blocker.query("BEGIN");
+  await blocker.query(
+    "LOCK TABLE zentwine_approvals.receipts IN ACCESS EXCLUSIVE MODE",
+  );
+  try {
+    const checked = assert.rejects(start(), fails(code));
+    await waitForLock(
+      f.adminPool,
+      "SELECT result FROM zentwine_approvals.receipts",
+    );
+    await sleep(1100);
+    await blocker.query("COMMIT");
+    await checked;
+  } finally {
+    await blocker.query("ROLLBACK");
+    blocker.release();
+  }
+}
+
+test("approval final boundary: permit issuance rolls back if request expires during response read", () =>
+  fixture(async (f) => {
+    const a = await f.approve(await f.propose());
+    const before = await eventCount(f);
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_approvals.requests SET expires_at=clock_timestamp()+interval '1 second' WHERE id=$1",
+      [a.id],
+    );
+    await holdReceiptView(f, () => f.permit(a), "forbidden");
+    assert.equal(
+      (
+        await query(
+          f.adminPool,
+          "SELECT count(*)::int AS n FROM zentwine_approvals.permits",
+        )
+      ).rows[0].n,
+      0,
+    );
+    assert.equal(
+      (
+        await query(
+          f.adminPool,
+          "SELECT state FROM zentwine_approvals.requests WHERE id=$1",
+          [a.id],
+        )
+      ).rows[0].state,
+      "approved",
+    );
+    assert.equal(await eventCount(f), before);
+  }));
+
+test("approval final boundary: human decision rolls back if request expires during response read", () =>
+  fixture(async (f) => {
+    const a = await f.propose();
+    const before = await eventCount(f);
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_approvals.requests SET expires_at=clock_timestamp()+interval '1 second' WHERE id=$1",
+      [a.id],
+    );
+    await holdReceiptView(f, () => f.approve(a), "forbidden");
+    assert.equal(
+      (
+        await query(
+          f.adminPool,
+          "SELECT count(*)::int AS n FROM zentwine_approvals.decisions",
+        )
+      ).rows[0].n,
+      0,
+    );
+    assert.equal(
+      (
+        await query(
+          f.adminPool,
+          "SELECT state FROM zentwine_approvals.requests WHERE id=$1",
+          [a.id],
+        )
+      ).rows[0].state,
+      "pending",
+    );
+    assert.equal(await eventCount(f), before);
+  }));
+
+test("approval final boundary: explicit revocation rolls back when actor session expires during event write", () =>
+  fixture(async (f) => {
+    const v = await f.ready(),
+      before = await eventCount(f),
+      blocker = await f.adminPool.connect();
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_identity.sessions SET idle_expires_at=clock_timestamp()+interval '1 second' WHERE digest=$1",
+      [f.owner.scope.session_digest],
+    );
+    await blocker.query("BEGIN");
+    await blocker.query("LOCK TABLE zentwine_approvals.events IN SHARE MODE");
+    try {
+      const checked = assert.rejects(
+        f.approvals.revoke(f.owner.scope, v.approval.id, {
+          expected_version: v.approval.object_version,
+          content_hash: v.approval.content_hash,
+        }),
+        fails("authentication_required"),
+      );
+      await waitForLock(f.adminPool, "INSERT INTO zentwine_approvals.events");
+      await sleep(1100);
+      await blocker.query("COMMIT");
+      await checked;
+    } finally {
+      await blocker.query("ROLLBACK");
+      blocker.release();
+    }
+    assert.equal(
+      (
+        await query(
+          f.adminPool,
+          "SELECT state FROM zentwine_approvals.requests WHERE id=$1",
+          [v.approval.id],
+        )
+      ).rows[0].state,
+      "issued",
+    );
+    assert.equal(await eventCount(f), before);
+  }));
+
+test("approval final boundary: notification read does not return under a session expired during storage wait", () =>
+  fixture(async (f) => {
+    await f.propose();
+    const blocker = await f.adminPool.connect();
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_identity.sessions SET idle_expires_at=clock_timestamp()+interval '1 second' WHERE digest=$1",
+      [f.owner.scope.session_digest],
+    );
+    await blocker.query("BEGIN");
+    await blocker.query(
+      "LOCK TABLE zentwine_approvals.events IN ACCESS EXCLUSIVE MODE",
+    );
+    try {
+      const checked = assert.rejects(
+        f.approvals.events(f.owner.scope, "0", 100),
+        fails("authentication_required"),
+      );
+      await waitForLock(
+        f.adminPool,
+        "SELECT e.* FROM zentwine_approvals.events",
+      );
+      await sleep(1100);
+      await blocker.query("COMMIT");
+      await checked;
+    } finally {
+      await blocker.query("ROLLBACK");
+      blocker.release();
+    }
+  }));

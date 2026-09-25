@@ -392,6 +392,18 @@ export class PostgresApprovalRepository implements ApprovalRepository {
       reusable: false,
     };
   }
+  /** Reads of the response can themselves wait on storage. Authorization must still
+   * be valid at the final pre-commit check, not just before writing the decision. */
+  private async finish(ctx: Context, deadline?: number): Promise<ApprovalView> {
+    const result = await this.view(ctx);
+    if (
+      deadline !== undefined &&
+      (!Number.isFinite(deadline) || (await now(ctx.c)) >= deadline)
+    )
+      throw new ApprovalError("forbidden");
+    await this.session(ctx.c, ctx.scope);
+    return result;
+  }
   private guard(ctx: Context, g: ApprovalGuard): void {
     validateApprovalGuard(g);
     if (
@@ -524,7 +536,7 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         if (previous["request_sha256"] !== hash(r))
           throw new ApprovalError("version_conflict");
         ctx.row = previous;
-        return this.view(ctx);
+        return this.finish(ctx);
       }
       const binding = this.binding(ctx, r),
         t = await now(c);
@@ -561,15 +573,15 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         );
         await this.transition(ctx, "approved", "preauthorized_policy");
       }
-      await this.current(ctx);
-      return this.view(ctx);
+      const final = await this.current(ctx);
+      return this.finish(ctx, final.deadline);
     });
   }
   async inspect(s: PolicyScope, rid: string): Promise<ApprovalView> {
     return tx(this.pool, async (c) => {
       const ctx = await this.context(c, s, rid);
       await this.visible(ctx);
-      return this.view(ctx);
+      return this.finish(ctx);
     });
   }
   async decide(
@@ -587,7 +599,7 @@ export class PostgresApprovalRepository implements ApprovalRepository {
       this.guard(ctx, g);
       if (ctx.row!["state"] !== "pending")
         throw new ApprovalError("version_conflict");
-      await this.current(ctx);
+      const initial = await this.current(ctx);
       const d = await this.decisions(ctx, ctx.actor);
       requireIndependentReviewer(
         str(ctx.row!, "requester_id"),
@@ -611,9 +623,16 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         outcome === "approve" ? "approved" : "rejected",
         "human",
       );
-      if (outcome === "approve") await this.current(ctx);
-      else await this.session(c, s);
-      return this.view(ctx);
+      const deadline = Math.min(
+        initial.deadline,
+        Date.parse(d.read.expires_at),
+        Date.parse(d.write.expires_at),
+      );
+      if (outcome === "approve") {
+        const final = await this.current(ctx);
+        return this.finish(ctx, Math.min(deadline, final.deadline));
+      }
+      return this.finish(ctx, deadline);
     });
   }
   async issuePermit(
@@ -644,9 +663,9 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         [rid, digest, new Date(t), new Date(end)],
       );
       await this.transition(ctx, "issued", "permit_issued");
-      await this.current(ctx);
+      const final = await this.current(ctx);
       return {
-        approval: await this.view(ctx),
+        approval: await this.finish(ctx, Math.min(end, final.deadline)),
         expires_at: new Date(end).toISOString(),
       };
     });
@@ -748,7 +767,7 @@ export class PostgresApprovalRepository implements ApprovalRepository {
       )
         throw new ApprovalError("forbidden");
       await this.transition(ctx, "revoked", "revoked");
-      return this.view(ctx);
+      return this.finish(ctx);
     });
   }
   async events(s: PolicyScope, after: string, limit: number) {
@@ -777,6 +796,8 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         reason: str(r, "reason"),
         occurred_at: new Date(ms(r, "occurred_at")).toISOString(),
       }));
+      // A slow notification query must not return data under an expired session.
+      await this.session(c, s);
       return {
         events,
         next_cursor: events.at(-1)?.cursor ?? after,
