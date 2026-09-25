@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "task": "ZT02-06-A",
+  "surfaces": [
+    {
+      "id": "rest",
+      "availability": "implemented",
+      "scope": "catalog_metadata_only",
+      "cases": [
+        "access-matrix rest cross_tenant",
+        "access-matrix rest role_downgrade",
+        "access-matrix rest stale_authority",
+        "access-matrix rest concurrent_revocation"
+      ]
+    },
+    {
+      "id": "websocket",
+      "availability": "implemented",
+      "scope": "catalog_metadata_only",
+      "cases": [
+        "access-matrix websocket cross_tenant",
+        "access-matrix websocket role_downgrade",
+        "access-matrix websocket stale_authority",
+        "access-matrix websocket concurrent_revocation"
+      ]
+    },
+    {
+      "id": "search",
+      "availability": "implemented",
+      "scope": "catalog_metadata_only",
+      "cases": [
+        "access-matrix search cross_tenant",
+        "access-matrix search role_downgrade",
+        "access-matrix search stale_authority",
+        "access-matrix search concurrent_revocation"
+      ]
+    },
+    {
+      "id": "files",
+      "availability": "unimplemented",
+      "scope": "reserved_route_denial_only",
+      "cases": [
+        "access-matrix files cross_tenant",
+        "access-matrix files role_downgrade",
+        "access-matrix files stale_authority",
+        "access-matrix files concurrent_revocation"
+      ]
+    },
+    {
+      "id": "preview",
+      "availability": "unimplemented",
+      "scope": "reserved_route_denial_only",
+      "cases": [
+        "access-matrix preview cross_tenant",
+        "access-matrix preview role_downgrade",
+        "access-matrix preview stale_authority",
+        "access-matrix preview concurrent_revocation"
+      ]
+    },
+    {
+      "id": "export",
+      "availability": "unimplemented",
+      "scope": "reserved_route_denial_only",
+      "cases": [
+        "access-matrix export cross_tenant",
+        "access-matrix export role_downgrade",
+        "access-matrix export stale_authority",
+        "access-matrix export concurrent_revocation"
+      ]
+    }
+  ]
+}

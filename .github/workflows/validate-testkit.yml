@@ -104,6 +104,21 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Verify the explicit access matrix on PostgreSQL and real transports
+        run: |
+          mkdir -p reports/access-matrix-format
+          for file in scripts/access-matrix.mjs scripts/run-access-matrix.mjs tests/access-matrix.test.mjs tests/access-matrix/boundaries.test.mjs; do
+            pnpm exec prettier "$file" > "reports/access-matrix-format/$(basename "$file")"
+          done
+          pnpm test:access-matrix 2>&1 | tee reports/access-matrix-tests.log
+          cp reports/access-matrix-evidence.json reports/access-matrix-verified.json
+          set +e
+          env -u ZENTWINE_TEST_DATABASE_URL -u ZENTWINE_TEST_DATABASE_ACK node scripts/run-access-matrix.mjs > reports/access-matrix-missing-config.log 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 1
+          mv reports/access-matrix-evidence.json reports/access-matrix-missing-config.json
+          mv reports/access-matrix-verified.json reports/access-matrix-evidence.json
       - name: Verify actual organization UI with Chromium and PostgreSQL
         run: |
           pnpm exec playwright install --with-deps chromium
