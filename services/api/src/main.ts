@@ -10,6 +10,7 @@ import {
   PostgresPolicyRepository,
   PostgresAgentRepository,
   PostgresApprovalRepository,
+  PostgresOrganizationRepository,
   type IdentityPool,
 } from "@zentwine/db";
 import { buildApp } from "./app.js";
@@ -77,7 +78,58 @@ async function main(): Promise<void> {
       throw e;
     }
   }
+  let organizations: PostgresOrganizationRepository | undefined;
+  let organizationPool: IdentityPool | undefined;
+  if (
+    process.env["ZENTWINE_ORGANIZATION_MODE"] !== undefined &&
+    process.env["ZENTWINE_ORGANIZATION_MODE"] !== "disabled"
+  ) {
+    try {
+      if (
+        process.env["ZENTWINE_ORGANIZATION_MODE"] !== "local" ||
+        !identity ||
+        !approvals
+      )
+        throw new ConfigurationError(
+          "ZENTWINE_ORGANIZATION_MODE",
+          "unsupported",
+        );
+      const orgConfig = parseIdentityConfig({
+        ...process.env,
+        ZENTWINE_DATABASE_URL:
+          process.env["ZENTWINE_ORGANIZATION_DATABASE_URL"],
+      });
+      if (
+        !orgConfig ||
+        new URL(orgConfig.databaseUrl.reveal()).username !==
+          "zt_organization_app"
+      )
+        throw new ConfigurationError(
+          "ZENTWINE_ORGANIZATION_DATABASE_URL",
+          "unsupported",
+        );
+      const primary = new URL(identity.databaseUrl.reveal()),
+        organizationUrl = new URL(orgConfig.databaseUrl.reveal());
+      if (
+        primary.hostname !== organizationUrl.hostname ||
+        (primary.port || "5432") !== (organizationUrl.port || "5432") ||
+        primary.pathname !== organizationUrl.pathname
+      )
+        throw new ConfigurationError(
+          "ZENTWINE_ORGANIZATION_DATABASE_URL",
+          "unsupported",
+        );
+      organizationPool = createIdentityPool(orgConfig.databaseUrl.reveal());
+      organizations = new PostgresOrganizationRepository(organizationPool);
+      await organizations.assertRuntimeRole();
+    } catch (e) {
+      await organizationPool?.end();
+      await pool?.end();
+      throw e;
+    }
+  }
   const app = buildApp({
+    ...(organizations ? { organizations } : {}),
     ...(approvals ? { approvals } : {}),
     ...(agents ? { agents } : {}),
     ...(policy ? { policy } : {}),
@@ -87,6 +139,10 @@ async function main(): Promise<void> {
       ? { identity: { repository, origins: identity.origins } }
       : {}),
   });
+  if (organizationPool) {
+    const owned = organizationPool;
+    app.addHook("onClose", async () => owned.end());
+  }
   if (pool) {
     const owned = pool;
     app.addHook("onClose", async () => {

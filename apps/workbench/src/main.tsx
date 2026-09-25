@@ -1,3 +1,4 @@
+import { OrganizationConsole } from "./organization.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -13,6 +14,7 @@ const studioUrl = `http://127.0.0.1:5174${STUDIO_PATH}`;
 function Workbench() {
   const { connection, retry } = useBootstrap();
   const path = window.location.pathname;
+  if (path === WORKBENCH_PATH + "/settings") return <OrganizationConsole />;
   if (path !== "/" && path !== WORKBENCH_PATH)
     return (
       <main className="fatal">
@@ -55,12 +57,15 @@ function Workbench() {
           <div className="nav-group-label" style={{ marginTop: 20 }}>
             CAPABILITIES
           </div>
-          {["团队知识", "模型实验室", "组织治理"].map((label) => (
+          {["团队知识", "模型实验室"].map((label) => (
             <div className="unavailable" key={label}>
               <span>{label}</span>
               <small>待实现</small>
             </div>
           ))}
+          <a href={WORKBENCH_PATH + "/settings"}>
+            组织设置与成员 <span aria-hidden="true">⚙</span>
+          </a>
         </nav>
         <div className="sidebar-footer">
           <a

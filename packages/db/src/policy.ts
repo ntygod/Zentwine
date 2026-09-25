@@ -1,3 +1,4 @@
+import { membershipAccess } from "./organization-guards.js";
 import { invalidateApprovals } from "./approval-events.js";
 import {
   isIdentityId,
@@ -156,8 +157,18 @@ export class PostgresPolicyRepository implements PolicyRepository {
         [s.org_id, text(session, "human_id")],
       )
     ).rows[0];
-    if (!m) throw new PolicyError("unavailable_resource");
-    return { ...session, ...m };
+    const access = await membershipAccess(
+      c,
+      s.org_id,
+      text(session, "human_id"),
+      s.session_digest,
+    );
+    if (!m || !access.allowed) throw new PolicyError("unavailable_resource");
+    return {
+      ...session,
+      ...m,
+      membership_kind: access.guest ? "guest" : "member",
+    };
   }
   async validateScope(s: PolicyScope): Promise<void> {
     await transaction(this.pool, async (c) => {
@@ -218,6 +229,7 @@ export class PostgresPolicyRepository implements PolicyRepository {
       human_id: text(actor, "human_id"),
       org_id: s.org_id,
       membership_role: text(actor, "role") as MemberRole,
+      membership_kind: text(actor, "membership_kind") as "member" | "guest",
       membership_version: integer(actor, "membership_version"),
       session_valid_until: Math.min(
         millis(actor, "expires_at"),

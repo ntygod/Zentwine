@@ -1,3 +1,7 @@
+import {
+  membershipAccess,
+  federationTicketValid,
+} from "./organization-guards.js";
 import { invalidateApprovals } from "./approval-events.js";
 import { authorizationLock } from "./authorization-locks.js";
 import { randomUUID } from "node:crypto";
@@ -131,7 +135,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
     c: SqlConnection,
     row: Record<string, unknown>,
   ): Promise<SessionIdentity> {
-    const orgs = (
+    let orgs = (
       await c.query(
         `SELECT o.id,o.display_name FROM ${S}.organizations o
       JOIN ${S}.memberships m ON m.org_id=o.id WHERE m.human_id=$1 AND m.status='active'
@@ -139,6 +143,20 @@ export class PostgresIdentityRepository implements IdentityRepository {
         [text(row, "human_id")],
       )
     ).rows;
+    const visible = [];
+    for (const org of orgs)
+      if (
+        (
+          await membershipAccess(
+            c,
+            text(org, "id"),
+            text(row, "human_id"),
+            text(row, "digest"),
+          )
+        ).allowed
+      )
+        visible.push(org);
+    orgs = visible;
     // Bound payloads without silently hiding a granted organization.
     if (orgs.length > 100) throw new IdentityError("unavailable");
     const organizations = Object.freeze(
@@ -218,7 +236,8 @@ export class PostgresIdentityRepository implements IdentityRepository {
           [ticketDigest],
         )
       ).rows[0];
-      if (!t) throw new IdentityError("invalid_login");
+      if (!t || !(await federationTicketValid(c, ticketDigest)))
+        throw new IdentityError("invalid_login");
       await c.query(
         `UPDATE ${S}.login_tickets SET consumed_at=clock_timestamp() WHERE digest=$1`,
         [ticketDigest],
@@ -241,7 +260,13 @@ export class PostgresIdentityRepository implements IdentityRepository {
           `UPDATE ${S}.sessions SET revoked_at=clock_timestamp() WHERE digest=$1`,
           [priorSessionDigest],
         );
-      return this.view(c, { ...s, human_name: text(t, "human_name") });
+      const view = await this.view(c, {
+        ...s,
+        human_name: text(t, "human_name"),
+      });
+      if (!(await federationTicketValid(c, ticketDigest)))
+        throw new IdentityError("invalid_login");
+      return view;
     });
   }
   async readSession(secretDigest: string): Promise<SessionIdentity> {
@@ -263,6 +288,12 @@ export class PostgresIdentityRepository implements IdentityRepository {
       if (number(s, "context_version") !== version || version >= 2147483646)
         throw new IdentityError("version_conflict");
       await this.membership(c, text(s, "human_id"), org);
+      if (
+        !(
+          await membershipAccess(c, org, text(s, "human_id"), text(s, "digest"))
+        ).allowed
+      )
+        throw new IdentityError("unavailable_resource");
       await c.query(
         `UPDATE ${S}.sessions SET active_org_id=$1,context_version=context_version+1 WHERE id=$2`,
         [org, text(s, "id")],
@@ -289,6 +320,12 @@ export class PostgresIdentityRepository implements IdentityRepository {
       if (s["active_org_id"] !== org)
         throw new IdentityError("unavailable_resource");
       const m = await this.membership(c, text(s, "human_id"), org);
+      if (
+        !(
+          await membershipAccess(c, org, text(s, "human_id"), text(s, "digest"))
+        ).allowed
+      )
+        throw new IdentityError("unavailable_resource");
       await this.touch(c, s);
       const role = text(m, "role");
       if (!["owner", "member", "viewer"].includes(role))
@@ -380,6 +417,16 @@ export class PostgresIdentityRepository implements IdentityRepository {
         `INSERT INTO ${S}.organizations(id,display_name) VALUES($1,$2)`,
         [org, name],
       );
+      const lifecycle = (
+        await c.query(
+          "SELECT to_regclass('zentwine_organizations.settings') AS relation",
+        )
+      ).rows[0];
+      if (lifecycle?.["relation"])
+        await c.query(
+          "INSERT INTO zentwine_organizations.settings(org_id) VALUES($1)",
+          [org],
+        );
     });
   }
   async setMembership(

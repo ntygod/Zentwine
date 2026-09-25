@@ -1,3 +1,4 @@
+import { membershipAccess } from "./organization-guards.js";
 import { appendApprovalEvent } from "./approval-events.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -149,7 +150,9 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         [human, org],
       )
     ).rows[0];
-    if (!r) throw new ApprovalError("unavailable_resource");
+    const access = await membershipAccess(c, org, human);
+    if (!r || !access.allowed || access.guest)
+      throw new ApprovalError("unavailable_resource");
     return {
       human,
       role: str(r, "role") as MemberRole,
@@ -172,7 +175,17 @@ export class PostgresApprovalRepository implements ApprovalRepository {
     if (!r) throw new ApprovalError("authentication_required");
     if (num(r, "context_version") !== s.context_version)
       throw new ApprovalError("version_conflict");
-    if (r["active_org_id"] !== s.org_id)
+    if (
+      r["active_org_id"] !== s.org_id ||
+      !(
+        await membershipAccess(
+          c,
+          s.org_id,
+          str(r, "human_id"),
+          s.session_digest,
+        )
+      ).allowed
+    )
       throw new ApprovalError("unavailable_resource");
     return r;
   }
