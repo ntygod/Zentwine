@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Brand } from "@zentwine/ui";
-import { WORKBENCH_PATH, parseOrganizationAuditPage, type OrganizationAuditPage, type OrganizationAuditKind } from "@zentwine/contracts";
+import {
+  WORKBENCH_PATH,
+  parseOrganizationAuditPage,
+  type OrganizationAuditPage,
+  type OrganizationAuditKind,
+} from "@zentwine/contracts";
 import { OrganizationAuditPanel } from "./audit.js";
 import "./organization.css";
 type Row = Record<string, unknown>;
@@ -179,8 +184,12 @@ export function OrganizationConsole() {
     [members, setMembers] = useState<Member[]>([]),
     [invitations, setInvitations] = useState<Invitation[]>([]),
     [connections, setConnections] = useState<Connection[]>([]);
-  const [auditPage, setAuditPage] = useState<OrganizationAuditPage | null>(null);
-  const [auditKind, setAuditKind] = useState<OrganizationAuditKind | "all">("all");
+  const [auditPage, setAuditPage] = useState<OrganizationAuditPage | null>(
+    null,
+  );
+  const [auditKind, setAuditKind] = useState<OrganizationAuditKind | "all">(
+    "all",
+  );
   const [ticket, setTicket] = useState(""),
     [acceptToken, setAcceptToken] = useState(""),
     [human, setHuman] = useState(""),
@@ -1090,18 +1099,38 @@ export function OrganizationConsole() {
             )}
           </>
         )}
-        {cap === "ready" && auth && me?.role === "owner" && me.access_kind === "member" && (
-          <OrganizationAuditPanel page={auditPage} kind={auditKind} busy={busy}
-            onKind={(kind) => { setAuditKind(kind); setAuditPage(null); }}
-            onLoad={(cursor) => run(async (tick) => {
-              setAuditPage(null);
-              const query = new URLSearchParams({ kind: auditKind, limit: "20", ...(cursor ? { cursor } : {}) });
-              const value = await api(orgPath(auth) + "/audit-events?" + query.toString());
-              const page = parseOrganizationAuditPage(value, auth.session.active_org_id ?? "");
-              if (gen.current === tick) setAuditPage(page);
-            })}
-          />
-        )}
+        {cap === "ready" &&
+          auth &&
+          me?.role === "owner" &&
+          me.access_kind === "member" && (
+            <OrganizationAuditPanel
+              page={auditPage}
+              kind={auditKind}
+              busy={busy}
+              onKind={(kind) => {
+                setAuditKind(kind);
+                setAuditPage(null);
+              }}
+              onLoad={(cursor) =>
+                run(async (tick) => {
+                  setAuditPage(null);
+                  const query = new URLSearchParams({
+                    kind: auditKind,
+                    limit: "20",
+                    ...(cursor ? { cursor } : {}),
+                  });
+                  const value = await api(
+                    orgPath(auth) + "/audit-events?" + query.toString(),
+                  );
+                  const page = parseOrganizationAuditPage(
+                    value,
+                    auth.session.active_org_id ?? "",
+                  );
+                  if (gen.current === tick) setAuditPage(page);
+                })
+              }
+            />
+          )}
         <footer className="page-footer">
           组织身份开发阶段 · 不会启动模型或自动部署服务
         </footer>

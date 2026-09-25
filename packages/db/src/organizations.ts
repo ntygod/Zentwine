@@ -308,11 +308,19 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       [org, human],
     );
   }
-  async audit(s: OrganizationScope, input: OrganizationAuditQuery): Promise<OrganizationAuditPage> {
+  async audit(
+    s: OrganizationScope,
+    input: OrganizationAuditQuery,
+  ): Promise<OrganizationAuditPage> {
     validateAuditQuery(input);
     return tx(this.pool, async (c) => {
       await this.begin(c, s, [], true, false);
-      const page = await readOrganizationAudit(c, s, input, this.auditCursorKey);
+      const page = await readOrganizationAudit(
+        c,
+        s,
+        input,
+        this.auditCursorKey,
+      );
       await this.current(c, s, true);
       return page;
     });

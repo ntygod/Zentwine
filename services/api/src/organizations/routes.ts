@@ -80,7 +80,13 @@ export async function registerOrganizationRoutes(
   });
   app.get<{ Querystring: OrganizationAuditQuery }>(
     "/api/v1/orgs/:orgId/audit-events",
-    { schema: { params: identityOrgParams, querystring: organizationAuditQuerySchema, response: { 200: organizationAuditPageSchema } } },
+    {
+      schema: {
+        params: identityOrgParams,
+        querystring: organizationAuditQuerySchema,
+        response: { 200: organizationAuditPageSchema },
+      },
+    },
     (r) => call(() => o.repository.audit(requestScope(r), r.query)),
   );
   app.get(
