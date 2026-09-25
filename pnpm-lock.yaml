@@ -93,6 +93,15 @@ importers:
 
   packages/contracts: {}
 
+  packages/db:
+    dependencies:
+      '@zentwine/domain':
+        specifier: workspace:*
+        version: link:../domain
+      pg:
+        specifier: 8.16.3
+        version: 8.16.3
+
   packages/domain: {}
 
   packages/telemetry:
@@ -128,6 +137,12 @@ importers:
 
   services/api:
     dependencies:
+      '@zentwine/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@zentwine/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@zentwine/config':
         specifier: workspace:*
         version: link:../../packages/config

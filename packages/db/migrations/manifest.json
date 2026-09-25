@@ -1,4 +1,21 @@
 {
   "schema_version": 1,
-  "migrations": []
+  "migrations": [
+    {
+      "id": "0001-identity-core",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0001-identity-core.up.sql",
+        "sha256": "d6cf90cfd92aca812c0d28351202e3ed88489def77ae2e74052b3f64b90ab28e"
+      },
+      "down": {
+        "path": "packages/db/migrations/0001-identity-core.down.sql",
+        "sha256": "323140f0c13f0704f6f11fcb5724153837098060bf4a64d24781c43f7c416d82"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0001-identity-core.verify.sql",
+        "sha256": "76e285ce086c06ad6597a485f1555443892a0de7bf146f40da1ed54f7d63ca48"
+      }
+    }
+  ]
 }

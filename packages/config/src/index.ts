@@ -7,7 +7,9 @@ export type ConfigField =
   | "ZENTWINE_BODY_LIMIT_BYTES"
   | "ZENTWINE_REQUEST_TIMEOUT_MS"
   | "ZENTWINE_SHUTDOWN_TIMEOUT_MS"
-  | "ZENTWINE_DATABASE_URL";
+  | "ZENTWINE_DATABASE_URL"
+  | "ZENTWINE_IDENTITY_MODE"
+  | "ZENTWINE_IDENTITY_ORIGINS";
 export type ConfigReason = "missing" | "invalid" | "unsupported";
 export class ConfigurationError extends Error {
   constructor(
@@ -140,3 +142,5 @@ export function parseDatabaseConfig(
     throw new ConfigurationError(field);
   }
 }
+
+export * from "./identity.js";

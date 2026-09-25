@@ -1,0 +1,17 @@
+{
+  "name": "@zentwine/db",
+  "version": "0.1.0-dev.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@zentwine/domain": "workspace:*",
+    "pg": "8.16.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

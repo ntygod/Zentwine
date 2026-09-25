@@ -9,7 +9,7 @@
 - pnpm / TypeScript monorepo，React 管理工作台与独立 Studio 入口。
 - Fastify 只读 bootstrap API，共享契约、客户端、配置与结构化错误基础。
 - 单元/API/浏览器测试与包边界检查；真实 Temporal + PostgreSQL 故障恢复实验单独保留在 `spikes/`。
-- 真实模型、身份、业务持久化、代码编辑和工作区执行尚未实现；界面明确显示这些边界。
+- 真实模型、代码编辑和工作区执行尚未实现；默认界面仍为只读壳。ZT02-01新增显式开启的本机身份API和PostgreSQL会话，尚无登录UI/企业SSO/生产认证。
 
 ## 本地运行
 
@@ -46,7 +46,7 @@ python scripts/validate_plans.py
 
 - [完整规划](docs/README.md)
 - [开发状态](docs/tasks/status.md)
-- [最新实施说明](docs/tasks/ZT01-06-execution.md)
+- [最新实施说明](docs/tasks/ZT02-01-execution.md)
 - [架构与决策](docs/adr/README.md)
 - [本地环境与版本](docs/development/foundation.md)
 - [仓库协作约定](AGENTS.md)
@@ -68,3 +68,7 @@ python scripts/validate_plans.py
 新成员从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始。`pnpm doctor --profile fresh --json` 检查安装前置；`pnpm env:up/status/down` 管理独立合成基础设施；`pnpm drill --suite database` 自动启动专用环境、验证并清理；`pnpm tools:prepare` 明确准备固定Temporal工具后可运行 `pnpm drill --suite durability`。
 
 完整命令、安全边界、离线与SIGKILL恢复见 [统一环境指南](docs/development/local-environment.md)。数据库使用临时存储，不用于保存真实业务。普通 `pnpm dev` 仍不需要Docker或模型密钥。
+
+## 组织与登录会话
+
+[ZT02-01身份开发指南](docs/development/identity-sessions.md)：独立本机身份数据库、受信任票据签发、会话/组织选择API，以及真实数据库集成测试。默认`pnpm dev`不读取身份凭据或自动迁移。

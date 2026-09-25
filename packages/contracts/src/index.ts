@@ -146,3 +146,5 @@ export function workspacePath(orgId: string, workspaceId: string): string {
     throw new TypeError("Invalid resource identifier");
   return `/org/${encodeURIComponent(orgId)}/studio/workspaces/${encodeURIComponent(workspaceId)}`;
 }
+
+export * from "./identity.js";

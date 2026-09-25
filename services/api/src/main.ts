@@ -1,5 +1,14 @@
-import { ConfigurationError, parseServiceConfig } from "@zentwine/config";
+import {
+  ConfigurationError,
+  parseServiceConfig,
+  parseIdentityConfig,
+} from "@zentwine/config";
 import { createLogger } from "@zentwine/telemetry";
+import {
+  createIdentityPool,
+  PostgresIdentityRepository,
+  type IdentityPool,
+} from "@zentwine/db";
 import { buildApp } from "./app.js";
 const sink = (line: string): void => {
   process.stdout.write(line);
@@ -7,12 +16,42 @@ const sink = (line: string): void => {
 async function main(): Promise<void> {
   const config = parseServiceConfig(process.env);
   const logger = createLogger({ level: config.logging.level, sink });
-  const app = buildApp({ config, logSink: sink });
-  await app.listen({ host: config.server.host, port: config.server.port });
+  const identity = parseIdentityConfig(process.env);
+  let pool: IdentityPool | undefined;
+  let repository: PostgresIdentityRepository | undefined;
+  try {
+    if (identity) {
+      pool = createIdentityPool(identity.databaseUrl.reveal());
+      repository = new PostgresIdentityRepository(pool);
+      await repository.assertRuntimeRole();
+    }
+  } catch (error) {
+    await pool?.end();
+    throw error;
+  }
+  const app = buildApp({
+    config,
+    logSink: sink,
+    ...(identity && repository
+      ? { identity: { repository, origins: identity.origins } }
+      : {}),
+  });
+  if (pool) {
+    const owned = pool;
+    app.addHook("onClose", async () => {
+      await owned.end();
+    });
+  }
+  try {
+    await app.listen({ host: config.server.host, port: config.server.port });
+  } catch (error) {
+    await app.close();
+    throw error;
+  }
   logger.log("info", "api.started", {
     host: config.server.host,
     port: config.server.port,
-    mode: "development-bootstrap",
+    mode: identity ? "local-ticket" : "development-bootstrap",
   });
   let closing = false;
   const shutdown = (): void => {
