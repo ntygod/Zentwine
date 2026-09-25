@@ -80,3 +80,7 @@ python scripts/validate_plans.py
 ## Agent身份与授权链（ZT02-03）
 
 本机身份模式下新增Agent责任链、收窄授权、调用额度与不可变快照；默认关闭，真实模型尚未接通。使用方式见[开发指南](docs/development/agent-delegations.md)，真实执行仍限目录读取/改名。
+
+## 版本绑定审批（ZT02-04）
+
+限定本机目录操作的独立审批、短期一次性许可和持久撤权通知。默认关闭，不会启动模型或部署。见[审批指南](docs/development/bound-approvals.md)与[执行记录](docs/tasks/ZT02-04-execution.md)。

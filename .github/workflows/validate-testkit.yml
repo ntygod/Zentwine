@@ -88,6 +88,14 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Verify version-bound approvals and revocation notifications
+        run: |
+          pnpm test:approvals-integration 2>&1 | tee reports/approval-tests.log
+          set +e
+          env -u ZENTWINE_TEST_DATABASE_URL -u ZENTWINE_TEST_DATABASE_ACK node scripts/run-approval-tests.mjs > reports/approval-missing-config.log 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 1
       - name: Verify missing configuration cannot silently skip integration
         run: |
           set +e

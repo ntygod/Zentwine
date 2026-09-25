@@ -9,6 +9,7 @@ import {
   PostgresIdentityRepository,
   PostgresPolicyRepository,
   PostgresAgentRepository,
+  PostgresApprovalRepository,
   type IdentityPool,
 } from "@zentwine/db";
 import { buildApp } from "./app.js";
@@ -61,7 +62,23 @@ async function main(): Promise<void> {
       throw e;
     }
   }
+  let approvals: PostgresApprovalRepository | undefined;
+  if (
+    process.env["ZENTWINE_APPROVAL_MODE"] !== undefined &&
+    process.env["ZENTWINE_APPROVAL_MODE"] !== "disabled"
+  ) {
+    try {
+      if (process.env["ZENTWINE_APPROVAL_MODE"] !== "local" || !pool || !agents)
+        throw new ConfigurationError("ZENTWINE_APPROVAL_MODE", "unsupported");
+      approvals = new PostgresApprovalRepository(pool);
+      await approvals.assertRuntimeRole();
+    } catch (e) {
+      await pool?.end();
+      throw e;
+    }
+  }
   const app = buildApp({
+    ...(approvals ? { approvals } : {}),
     ...(agents ? { agents } : {}),
     ...(policy ? { policy } : {}),
     config,

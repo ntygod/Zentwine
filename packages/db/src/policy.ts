@@ -1,3 +1,4 @@
+import { invalidateApprovals } from "./approval-events.js";
 import {
   isIdentityId,
   isContextVersion,
@@ -321,6 +322,7 @@ export class PostgresPolicyAdmin {
         `UPDATE ${P}.organization_policies SET revision=revision+1 WHERE org_id=$1`,
         [r.org_id],
       );
+      await invalidateApprovals(c, r.org_id, null);
     });
   }
   private async change(
@@ -340,6 +342,7 @@ export class PostgresPolicyAdmin {
       ).rows[0];
       if (!r) throw new PolicyError("version_conflict");
       await fn(c);
+      await invalidateApprovals(c, org, null);
     });
   }
   async addRule(

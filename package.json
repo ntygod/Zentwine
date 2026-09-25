@@ -49,7 +49,10 @@
     "policy:admin": "node scripts/policy-admin.mjs",
     "test:agents": "node --test tests/agents.test.mjs",
     "test:agents-integration": "node scripts/run-agent-tests.mjs",
-    "agents:admin": "node scripts/agent-admin.mjs"
+    "agents:admin": "node scripts/agent-admin.mjs",
+    "test:approvals": "node --test tests/approvals.test.mjs",
+    "test:approvals-integration": "node scripts/run-approval-tests.mjs",
+    "approvals:admin": "node scripts/approval-admin.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",

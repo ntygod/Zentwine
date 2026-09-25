@@ -48,6 +48,22 @@
         "path": "packages/db/migrations/0003-agent-delegations.verify.sql",
         "sha256": "74b24deb2972838d0e7eb34492f024ca169d35aaa1894f9984820b3fa9bcec9b"
       }
+    },
+    {
+      "id": "0004-bound-approvals",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0004-bound-approvals.up.sql",
+        "sha256": "fd2c57e80740a554261afd691b68401a799dbf6dd4c9684f48fc646be916c7d9"
+      },
+      "down": {
+        "path": "packages/db/migrations/0004-bound-approvals.down.sql",
+        "sha256": "2e33b36bcd7ccaa9b603e8c00c4b3f43edf95ee4eca1630e8ee36d1e1d03a748"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0004-bound-approvals.verify.sql",
+        "sha256": "f940d9cf26312b25a12593c4e9fe00458df3668c28e7404e1d63370c15cc0793"
+      }
     }
   ]
 }
