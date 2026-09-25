@@ -47,7 +47,7 @@ test("approval PG wait: expiry while waiting for permit row prevents mutation", 
       1,
     );
   }));
-test("approval PG wait: requester session expires while waiting for resource lock", () =>
+test("approval PG wait: reviewer session expires while waiting for resource lock", () =>
   fixture(async (f) => {
     const a = await f.propose();
     await query(

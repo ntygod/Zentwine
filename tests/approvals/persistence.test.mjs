@@ -56,7 +56,7 @@ test(
     "production catalog action needs independent approval then executes exactly once",
   () =>
     fixture(async (f) => {
-      const r = await f.register({ environment: "production" });
+      const r = await f.registerResource({ environment: "production" });
       await assert.rejects(
         f.policy.renameResource(
           f.owner.scope,
@@ -127,7 +127,7 @@ test(p + "self approval rejected even for organization owner", () =>
 );
 test(p + "reviewer requires owner role AND access to restricted resource", () =>
   fixture(async (f) => {
-    const r = await f.register({
+    const r = await f.registerResource({
       visibility: "restricted",
       owner_human_id: f.alice,
     });
@@ -533,7 +533,7 @@ test(
     "Agent bearer and prior delegation cannot consume human permit or bypass production policy",
   () =>
     fixture(async (f) => {
-      const r = await f.register({ environment: "production" });
+      const r = await f.registerResource({ environment: "production" });
       await assert.rejects(
         f.issue({
           terms: f.terms({

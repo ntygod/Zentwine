@@ -13,6 +13,7 @@ try {
       "tests/approvals/persistence.test.mjs",
       "tests/approvals/http.test.mjs",
       "tests/approvals/waits.test.mjs",
+      "tests/approvals/hardening.test.mjs",
     ],
     { env, stdio: "inherit", timeout: 240000, killSignal: "SIGKILL" },
   );

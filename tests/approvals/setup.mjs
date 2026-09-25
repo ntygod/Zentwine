@@ -67,6 +67,16 @@ export async function fixture(work) {
       review: "required",
       ...overrides,
     });
+    const registerResource = async (overrides = {}) => {
+      const resource = {
+        ...f.a,
+        id: randomUUID(),
+        object_version: 1,
+        ...overrides,
+      };
+      await f.operator.registerResource(resource);
+      return resource;
+    };
     const propose = async (overrides = {}, scope = f.owner.scope) =>
       approvals.request(scope, await input(overrides));
     const approve = async (a) =>
@@ -88,6 +98,7 @@ export async function fixture(work) {
     return work({
       ...f,
       reviewer,
+      registerResource,
       approvals,
       input,
       propose,

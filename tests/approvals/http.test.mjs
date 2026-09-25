@@ -107,7 +107,7 @@ test("approval HTTP: notifications filter current subject, reject unauthorized c
       await app.close();
     }
   }));
-test("approval HTTP: permission failures and storage exceptions never disclose secrets", () =>
+test("approval HTTP: success and replay rejection never disclose secrets", () =>
   fixture(async (f) => {
     const lines = [],
       app = f.app({ logSink: (line) => lines.push(line) });
@@ -121,6 +121,15 @@ test("approval HTTP: permission failures and storage exceptions never disclose s
         { ...execution(v.approval), permit: "zt_permit_" + v.token },
       );
       assert.equal(r.statusCode, 200);
+      const replay = await request(
+        app,
+        f.owner,
+        "POST",
+        `${root(f)}/${v.approval.id}/execute`,
+        { ...execution(v.approval), permit: "zt_permit_" + v.token },
+      );
+      assert.equal(replay.statusCode, 409);
+      assert.equal(replay.body.includes(v.token), false);
       const logs = lines.join("");
       for (const sensitive of [
         v.token,

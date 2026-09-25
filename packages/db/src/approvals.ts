@@ -723,7 +723,11 @@ export class PostgresApprovalRepository implements ApprovalRepository {
       if ((await now(c)) >= deadline) throw new ApprovalError("forbidden");
       await this.session(c, s);
       await this.transition(ctx, "consumed", "executed");
-      return this.view(ctx);
+      const result = await this.view(ctx);
+      // Bookkeeping can also wait; abort if authorization expired before the last pre-commit check.
+      if ((await now(c)) >= deadline) throw new ApprovalError("forbidden");
+      await this.session(c, s);
+      return result;
     });
   }
   async revoke(
