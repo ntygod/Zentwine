@@ -10,6 +10,7 @@ export type ConfigField =
   | "ZENTWINE_DATABASE_URL"
   | "ZENTWINE_POLICY_MODE"
   | "ZENTWINE_AGENT_MODE"
+  | "ZENTWINE_APPROVAL_MODE"
   | "ZENTWINE_IDENTITY_MODE"
   | "ZENTWINE_IDENTITY_ORIGINS";
 export type ConfigReason = "missing" | "invalid" | "unsupported";

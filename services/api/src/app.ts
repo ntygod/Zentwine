@@ -1,3 +1,5 @@
+import { registerApprovalRoutes } from "./approvals/routes.js";
+import type { ApprovalRepository } from "@zentwine/policy";
 import {
   registerAgentOwnerRoutes,
   registerAgentExecutionRoutes,
@@ -37,6 +39,7 @@ export interface AppOptions {
   identity?: IdentityRoutesOptions;
   policy?: PolicyRepository;
   agents?: AgentRepository;
+  approvals?: ApprovalRepository;
   now?: () => Date;
   clock?: Clock;
   monotonicClock?: MonotonicClock;
@@ -190,6 +193,14 @@ export function buildApp(options: AppOptions = {}) {
     };
     app.register(registerAgentOwnerRoutes, agentOptions);
     app.register(registerAgentExecutionRoutes, agentOptions);
+  }
+  if (options.approvals) {
+    if (!options.identity || !options.policy || !options.agents)
+      throw new AppError("invalid_input");
+    app.register(registerApprovalRoutes, {
+      repository: options.approvals,
+      origins: options.identity.origins,
+    });
   }
   return app;
 }
