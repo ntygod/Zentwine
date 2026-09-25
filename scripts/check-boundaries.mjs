@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 export const rules = {
   "@zentwine/domain": [],
+  "@zentwine/db": ["@zentwine/domain", "pg"],
   "@zentwine/contracts": [],
   "@zentwine/config": [],
   "@zentwine/telemetry": ["@zentwine/contracts", "@zentwine/domain"],
@@ -11,6 +12,8 @@ export const rules = {
   "@zentwine/testkit": ["@zentwine/domain"],
   "@zentwine/ui": ["@zentwine/client", "@zentwine/contracts", "react"],
   "@zentwine/api": [
+    "@zentwine/db",
+    "@zentwine/domain",
     "@zentwine/contracts",
     "@zentwine/config",
     "@zentwine/telemetry",
@@ -45,7 +48,7 @@ export function inspectSource(owner, filename, source, packageRoot) {
     }
     if (
       specifier.startsWith("node:") &&
-      ["@zentwine/api", "@zentwine/telemetry"].includes(owner)
+      ["@zentwine/api", "@zentwine/telemetry", "@zentwine/db"].includes(owner)
     )
       return;
     if (

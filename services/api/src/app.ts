@@ -21,7 +21,12 @@ import {
   type LogSink,
   type TraceContext,
 } from "@zentwine/telemetry";
+import {
+  registerIdentityRoutes,
+  type IdentityRoutesOptions,
+} from "./identity/routes.js";
 export interface AppOptions {
+  identity?: IdentityRoutesOptions;
   now?: () => Date;
   clock?: Clock;
   monotonicClock?: MonotonicClock;
@@ -121,7 +126,9 @@ export function buildApp(options: AppOptions = {}) {
     reply.code(503).send({
       status: "bootstrap_only",
       production_ready: false,
-      reason: "identity_persistence_and_execution_not_implemented",
+      reason: options.identity
+        ? "local_identity_only_production_not_enabled"
+        : "identity_persistence_and_execution_not_implemented",
     }),
   );
   app.get(
@@ -154,5 +161,6 @@ export function buildApp(options: AppOptions = {}) {
       ],
     }),
   );
+  if (options.identity) app.register(registerIdentityRoutes, options.identity);
   return app;
 }

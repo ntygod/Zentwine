@@ -7,7 +7,9 @@
     "@zentwine/contracts": "workspace:*",
     "@zentwine/config": "workspace:*",
     "@zentwine/telemetry": "workspace:*",
-    "fastify": "5.12.5"
+    "fastify": "5.12.5",
+    "@zentwine/db": "workspace:*",
+    "@zentwine/domain": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -39,7 +39,11 @@
     "drill": "node scripts/drill.mjs",
     "test:development": "node --test tests/development.test.mjs",
     "test:environment": "node --test tests/development/stack.test.mjs tests/development/recovery.test.mjs",
-    "test:dev-lifecycle": "node --test tests/development/launch.test.mjs"
+    "test:dev-lifecycle": "node --test tests/development/launch.test.mjs",
+    "test:identity": "node scripts/run-identity-tests.mjs",
+    "test:identity-security": "node --test tests/identity-security.test.mjs",
+    "identity:admin": "node scripts/identity-admin.mjs",
+    "identity:serve": "node services/api/dist/main.js"
   },
   "devDependencies": {
     "typescript": "6.0.2",

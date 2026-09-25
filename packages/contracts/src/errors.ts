@@ -1,5 +1,15 @@
 /** Public copy and retry guidance are code-owned, never taken from exceptions. */
 export const ERROR_CATALOG = Object.freeze({
+  authentication_required: Object.freeze({
+    status: 401,
+    message: "Authentication required",
+    retryable: false,
+  }),
+  invalid_login: Object.freeze({
+    status: 401,
+    message: "Invalid or expired login credential",
+    retryable: false,
+  }),
   invalid_input: Object.freeze({
     status: 400,
     message: "Invalid request",

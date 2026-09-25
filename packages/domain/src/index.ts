@@ -29,3 +29,5 @@ export function matchesRevision(a: RevisionRef, b: RevisionRef): boolean {
 export interface MonotonicClock {
   milliseconds(): number;
 }
+
+export * from "./identity.js";
