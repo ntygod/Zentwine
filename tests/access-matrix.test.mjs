@@ -10,7 +10,9 @@ import {
   coverageSummary,
   caseId,
 } from "../scripts/access-matrix.mjs";
-const source = JSON.parse(fs.readFileSync("quality/access-matrix.json", "utf8"));
+const source = JSON.parse(
+  fs.readFileSync("quality/access-matrix.json", "utf8"),
+);
 const definition = () => structuredClone(source);
 const cells = validateMatrix(source);
 function tap() {
@@ -75,12 +77,8 @@ test("access matrix: process failure overrides even an all-green transcript", ()
     assert.throws(() => verifyTap(tap(), status, cells));
 });
 test("access matrix: missing or duplicate case identities cannot pass", () => {
-  assert.throws(() =>
-    verifyTap(tap().replace(/^ok 1 - .*\n/m, ""), 0, cells),
-  );
-  assert.throws(() =>
-    verifyTap(tap() + `ok 25 - ${cells[0].id}\n`, 0, cells),
-  );
+  assert.throws(() => verifyTap(tap().replace(/^ok 1 - .*\n/m, ""), 0, cells));
+  assert.throws(() => verifyTap(tap() + `ok 25 - ${cells[0].id}\n`, 0, cells));
 });
 test("access matrix: unexpected names cannot substitute for required scenarios", () => {
   assert.throws(() =>
@@ -111,10 +109,14 @@ test("access matrix: oversized or malformed execution evidence is rejected", () 
   assert.throws(() => verifyTap("passed", 0, cells));
 });
 test("access matrix: check mode never claims a database test was executed", () => {
-  const r = spawnSync(process.execPath, ["scripts/run-access-matrix.mjs", "--check"], {
-    encoding: "utf8",
-    timeout: 10000,
-  });
+  const r = spawnSync(
+    process.execPath,
+    ["scripts/run-access-matrix.mjs", "--check"],
+    {
+      encoding: "utf8",
+      timeout: 10000,
+    },
+  );
   assert.equal(r.status, 0);
   const report = JSON.parse(r.stdout);
   assert.equal(report.status, "definition_valid_not_executed");
@@ -126,15 +128,25 @@ test("access matrix: missing configuration replaces stale green evidence", () =>
   try {
     fs.mkdirSync(path.join(root, "quality"));
     fs.mkdirSync(path.join(root, "reports"));
-    fs.copyFileSync("quality/access-matrix.json", path.join(root, "quality/access-matrix.json"));
+    fs.copyFileSync(
+      "quality/access-matrix.json",
+      path.join(root, "quality/access-matrix.json"),
+    );
     const reportPath = path.join(root, "reports/access-matrix-evidence.json");
-    fs.writeFileSync(reportPath, JSON.stringify({ status: "passed", executed: true }));
-    const r = spawnSync(process.execPath, [path.resolve("scripts/run-access-matrix.mjs")], {
-      cwd: root,
-      env: { PATH: process.env.PATH, NODE_ENV: "test" },
-      encoding: "utf8",
-      timeout: 10000,
-    });
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({ status: "passed", executed: true }),
+    );
+    const r = spawnSync(
+      process.execPath,
+      [path.resolve("scripts/run-access-matrix.mjs")],
+      {
+        cwd: root,
+        env: { PATH: process.env.PATH, NODE_ENV: "test" },
+        encoding: "utf8",
+        timeout: 10000,
+      },
+    );
     assert.equal(r.status, 1);
     const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
     assert.equal(report.status, "failed");

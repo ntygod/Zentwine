@@ -49,7 +49,10 @@ export function validateMatrix(value) {
           ? "catalog_metadata_only"
           : "reserved_route_denial_only") ||
       !Array.isArray(row.cases) ||
-      !equal(row.cases, scenarios.map((s) => caseId(name, s)))
+      !equal(
+        row.cases,
+        scenarios.map((s) => caseId(name, s)),
+      )
     )
       throw new Error("missing_or_misclassified_matrix_cell");
     for (const scenario of scenarios)
@@ -71,9 +74,12 @@ export function verifyTap(text, exitCode, cells) {
     exitCode !== 0 ||
     !text.startsWith("TAP version 13\n") ||
     /^(?:not ok\b|Bail out!)/m.test(text) ||
-    text.split("\n").some((line) =>
-      /#\s*(?:SKIP|TODO)\b/i.test(line) && !/^# todo 0\r?$/.test(line),
-    )
+    text
+      .split("\n")
+      .some(
+        (line) =>
+          /#\s*(?:SKIP|TODO)\b/i.test(line) && !/^# todo 0\r?$/.test(line),
+      )
   )
     throw new Error("matrix_test_execution_failed");
   const passed = [...text.matchAll(/^ok \d+ - (access-matrix [^\r\n]+)$/gm)]
@@ -84,7 +90,9 @@ export function verifyTap(text, exitCode, cells) {
   if (plans.length !== 1 || Number(plans[0][1]) !== expected.length)
     throw new Error("invalid_matrix_test_plan");
   const summary = (key) => {
-    const matches = [...text.matchAll(new RegExp(`^# ${key} (\\d+)\\r?$`, "gm"))];
+    const matches = [
+      ...text.matchAll(new RegExp(`^# ${key} (\\d+)\\r?$`, "gm")),
+    ];
     if (matches.length !== 1) throw new Error("invalid_matrix_test_summary");
     return Number(matches[0][1]);
   };

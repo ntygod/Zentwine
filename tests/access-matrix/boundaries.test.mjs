@@ -4,16 +4,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { once } from "node:events";
-import {
-  fixture,
-  origin,
-  waitForLock,
-} from "../organizations/setup.mjs";
-import {
-  surfaces,
-  scenarios,
-  caseId,
-} from "../../scripts/access-matrix.mjs";
+import { fixture, origin, waitForLock } from "../organizations/setup.mjs";
+import { surfaces, scenarios, caseId } from "../../scripts/access-matrix.mjs";
 const { WebSocket } = createRequire(
   new URL("../../services/api/package.json", import.meta.url),
 )("ws");
@@ -179,9 +171,14 @@ async function implementedCase(f, surface, scenario, auth, c) {
   allowed(surface, await c.read(), f.a.id);
   if (scenario === "cross_tenant") {
     const hidden = await f.registerResource({
-      visibility: "private",
+      visibility: "restricted",
+      owner_human_id: f.alice,
       display_name: "Hidden-Matrix-Canary",
     });
+    assert.equal(
+      (await f.policy.readResource(f.owner.scope, hidden.id)).resource.id,
+      hidden.id,
+    );
     if (surface === "search") {
       const all = await c.search();
       assert.ok(!all.body.some((r) => [hidden.id, f.b.id].includes(r.id)));
@@ -201,7 +198,11 @@ async function implementedCase(f, surface, scenario, auth, c) {
       rejected(await c.read(hidden.id));
     }
   } else if (scenario === "role_downgrade") {
-    const cached = await f.policy.evaluate(auth.scope, f.a.id, "resource.update");
+    const cached = await f.policy.evaluate(
+      auth.scope,
+      f.a.id,
+      "resource.update",
+    );
     assert.equal(cached.outcome, "allow");
     await downgrade(f);
     rejected(await c.read());
@@ -223,9 +224,9 @@ async function implementedCase(f, surface, scenario, auth, c) {
       assert.equal(result.status, 200);
       assert.deepEqual(result.body, []);
     } else rejected(result);
-    assert.equal(
-      (await f.policy.evaluate(auth.scope, f.a.id, "resource.read")).outcome,
-      "deny",
+    await assert.rejects(
+      f.policy.evaluate(auth.scope, f.a.id, "resource.read"),
+      { code: "unavailable_resource" },
     );
     assert.equal(cached.outcome, "allow");
   } else {

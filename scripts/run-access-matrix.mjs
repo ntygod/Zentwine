@@ -95,14 +95,18 @@ try {
     if (git("rev-parse", "HEAD") !== commit)
       throw new Error("tested_commit_changed");
     report.status = "current_surfaces_verified";
-    if (args[0] === "--require-all-surfaces" && report.deferred_surfaces.length) {
+    if (
+      args[0] === "--require-all-surfaces" &&
+      report.deferred_surfaces.length
+    ) {
       report.status = "incomplete_surface_implementation";
       process.exitCode = 2;
     }
   }
 } catch {
   report.status = "failed";
-  report.error = "Matrix verification failed; inspect fixed test output and disposable configuration.";
+  report.error =
+    "Matrix verification failed; inspect fixed test output and disposable configuration.";
   process.exitCode = 1;
 } finally {
   const text = JSON.stringify(report, null, 2) + "\n";
