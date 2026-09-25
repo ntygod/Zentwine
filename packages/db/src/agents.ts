@@ -606,6 +606,15 @@ export class PostgresAgentRepository implements AgentRepository {
       ).rows[0];
       if (!allocated) throw new DelegationError("budget_exhausted");
     }
+    // Revalidate after all resource locks and inserts. Earlier grants may have
+    // naturally expired while another resource or uniqueness check was waiting.
+    await this.checkTerms(c, a, request.terms);
+    const completedAt = await now(c);
+    if (
+      request.terms.expires_at <= completedAt ||
+      parent?.views.some((v) => completedAt >= v.terms.expires_at)
+    )
+      throw new DelegationError("forbidden");
     return { created: true, delegation: await this.view(c, r) };
   }
   async issueRoot(
@@ -618,7 +627,9 @@ export class PostgresAgentRepository implements AgentRepository {
     const input = copy(r);
     return tx(this.pool, async (c) => {
       const a = await this.human(c, s);
-      return this.issue(c, a, input, digest, null);
+      const issued = await this.issue(c, a, input, digest, null);
+      if (issued.created) await this.human(c, s);
+      return issued;
     });
   }
   async delegate(
@@ -631,7 +642,9 @@ export class PostgresAgentRepository implements AgentRepository {
     const input = copy(r);
     return tx(this.pool, async (c) => {
       const chain = await this.chain(c, s);
-      return this.issue(c, chain.authority, input, digest, chain);
+      const issued = await this.issue(c, chain.authority, input, digest, chain);
+      if (issued.created) await this.chain(c, s);
+      return issued;
     });
   }
   async inspect(s: AgentCredentialScope): Promise<DelegationView> {

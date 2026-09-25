@@ -12,6 +12,7 @@ try {
       "--test-timeout=30000",
       "tests/agents/persistence.test.mjs",
       "tests/agents/http.test.mjs",
+      "tests/agents/issuance-waits.test.mjs",
     ],
     { env, stdio: "inherit", timeout: 240000, killSignal: "SIGKILL" },
   );
