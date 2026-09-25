@@ -1,0 +1,44 @@
+name: Prepare policy dependency evidence
+on:
+  push:
+    branches: [feat/ZT02-02-authorization-policy]
+    paths: [.github/workflows/prepare-policy-dependencies.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 979ec37761f52390c938297de63cbcabffb2c0ad
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - name: Prepare exact manifest changes without writing the repository
+        shell: bash
+        run: |
+          npm install --global pnpm@11.10.0 --ignore-scripts
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          fs.writeFileSync('packages/policy/package.json', JSON.stringify({name:'@zentwine/policy',version:'0.1.0-dev.0',private:true,type:'module',exports:{'.':{types:'./dist/index.d.ts',default:'./dist/index.js'}},dependencies:{'@zentwine/domain':'workspace:*'},scripts:{build:'tsc -p tsconfig.json',typecheck:'tsc -p tsconfig.json --noEmit'}},null,2)+'\n');
+          for(const path of ['packages/db/package.json','services/api/package.json']){const p=JSON.parse(fs.readFileSync(path));p.dependencies['@zentwine/policy']='workspace:*';if(path.startsWith('services/'))p.dependencies.ws='8.21.3';fs.writeFileSync(path,JSON.stringify(p,null,2)+'\n');}
+          JS
+          pnpm install --no-frozen-lockfile --ignore-scripts
+          mkdir -p reports
+          cp pnpm-lock.yaml reports/
+          cp packages/policy/package.json reports/policy-package.json
+          cp packages/db/package.json reports/db-package.json
+          cp services/api/package.json reports/api-package.json
+          npm view ws@8.21.3 version dist license --json > reports/ws-registry.json
+          pnpm audit --json > reports/audit.json
+          find node_modules apps packages services -type d -name node_modules -prune -print0 | tar --null -T - -czf reports/tooling.tar.gz
+          sha256sum reports/* > reports/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: policy-dependencies
+          path: reports/
+          retention-days: 2
+          if-no-files-found: error
