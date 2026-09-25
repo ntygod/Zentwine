@@ -10,6 +10,8 @@ export const ORGANIZATION_AUDIT_KINDS = [
   "connection.updated",
   "identity.linked",
   "identity.provisioned",
+  "member.emergency_held",
+  "member.emergency_released",
 ] as const;
 export type OrganizationAuditKind = (typeof ORGANIZATION_AUDIT_KINDS)[number];
 export interface OrganizationAuditQuery {

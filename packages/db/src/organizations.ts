@@ -1,6 +1,11 @@
 import { createHash, randomUUID, randomBytes } from "node:crypto";
 import {
   OrganizationError,
+  validateEmergencyInput,
+  type EmergencyInput,
+  type EmergencyState,
+  type EmergencyResult,
+  type EmergencyReceipt,
   validateAuditQuery,
   type OrganizationAuditQuery,
   type OrganizationAuditPage,
@@ -181,6 +186,11 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       if (!r || Object.values(r).some((x) => x !== false))
         throw new OrganizationError("unavailable");
       await c.query(`SELECT org_id FROM ${O}.settings LIMIT 0`);
+      const installed = (await c.query("SELECT to_regclass('zentwine_organizations.emergency_receipts') AS relation")).rows[0]?.["relation"];
+      if (installed) {
+        const privileges = (await c.query("SELECT has_table_privilege(current_user,'zentwine_organizations.emergency_receipts','UPDATE,DELETE,TRUNCATE,TRIGGER') AS rewrites")).rows[0];
+        if (privileges?.["rewrites"] !== false) throw new OrganizationError("unavailable");
+      }
     });
   }
   private async session(c: SqlConnection, secret: string): Promise<Row> {
@@ -307,6 +317,82 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       `INSERT INTO ${O}.session_cutoffs(org_id,human_id,invalid_before) VALUES($1,$2,clock_timestamp()) ON CONFLICT(org_id,human_id) DO UPDATE SET invalid_before=GREATEST(${O}.session_cutoffs.invalid_before,EXCLUDED.invalid_before)`,
       [org, human],
     );
+  }
+
+  private async emergencyView(c: SqlConnection, org: string, mid: string): Promise<EmergencyState> {
+    const m = await this.member(c, org, mid);
+    if (typeof m["emergency_held"] !== "boolean" || !Number.isInteger(m["emergency_version"]))
+      throw new OrganizationError("unavailable");
+    return {
+      org_id: org, member_id: mid, human_id: str(m, "human_id"),
+      held: m["emergency_held"], version: num(m, "emergency_version"),
+      member_version: num(m, "object_version"),
+      membership_status: str(m, "status") as "active" | "revoked",
+    };
+  }
+  async emergencyState(s: OrganizationScope, mid: string): Promise<EmergencyState> {
+    id(mid);
+    return tx(this.pool, async (c) => {
+      await this.begin(c, s, [], true, false);
+      const state = await this.emergencyView(c, s.org_id, mid);
+      await this.current(c, s, true);
+      return state;
+    });
+  }
+  async emergencyChange(s: OrganizationScope, mid: string, input: EmergencyInput): Promise<EmergencyResult> {
+    id(mid);
+    validateEmergencyInput(input);
+    return tx(this.pool, async (c) => {
+      id(s?.org_id);
+      version(s?.context_version);
+      await this.current(c, s, true);
+      const seed = await this.member(c, s.org_id, mid), human = str(seed, "human_id");
+      const actor = await this.begin(c, s, [human], true);
+      // Another currently authorized owner must remain able to manage this organization.
+      if (str(actor, "human_id") === human || input.confirm_human_id !== human)
+        throw new OrganizationError("forbidden");
+      const state = await this.emergencyView(c, s.org_id, mid);
+      const content = hash([mid, human, input.action, input.reason, input.expected_version, input.expected_member_version]);
+      const prior = (await c.query(
+        `SELECT content_hash,result FROM ${O}.emergency_receipts WHERE org_id=$1 AND actor_id=$2 AND request_id=$3`,
+        [s.org_id, actor["human_id"], input.request_id],
+      )).rows[0];
+      if (prior) {
+        if (prior["content_hash"] !== content) throw new OrganizationError("version_conflict");
+        await this.current(c, s, true);
+        // Return the historical receipt AND current state: a replay cannot claim to reapply an old hold.
+        return { receipt: prior["result"] as EmergencyReceipt, current: state, replayed: true };
+      }
+      if (state.version !== input.expected_version || state.member_version !== input.expected_member_version ||
+        state.held === (input.action === "hold")) throw new OrganizationError("version_conflict");
+      await c.query(
+        `UPDATE ${I}.memberships SET emergency_held=$3,emergency_version=emergency_version+1,object_version=object_version+1 WHERE org_id=$1 AND id=$2`,
+        [s.org_id, mid, input.action === "hold"],
+      );
+      // Rotate both on hold and release: sessions created while held and delegation snapshots never revive.
+      // Never update target session rows while holding authority locks (session -> authority lock order).
+      await this.cutoff(c, s.org_id, human);
+      await invalidateApprovals(c, s.org_id, human);
+      await c.query(
+        `UPDATE ${O}.invitations SET state='revoked',object_version=object_version+1 WHERE org_id=$1 AND (human_id=$2 OR inviter_id=$2) AND state='pending'`,
+        [s.org_id, human],
+      );
+      await this.event(c, s.org_id, str(actor, "human_id"), input.action === "hold" ? "member.emergency_held" : "member.emergency_released", mid);
+      const current = await this.emergencyView(c, s.org_id, mid);
+      const now = (await c.query("SELECT clock_timestamp() AS now")).rows[0];
+      if (!now) throw new OrganizationError("unavailable");
+      const receipt: EmergencyReceipt = {
+        request_id: input.request_id, member_id: mid, human_id: human,
+        actor_id: str(actor, "human_id"), action: input.action, reason: input.reason,
+        version: current.version, occurred_at: at(now, "now").toISOString(),
+      };
+      await c.query(
+        `INSERT INTO ${O}.emergency_receipts(org_id,actor_id,request_id,content_hash,result) VALUES($1,$2,$3,$4,$5::jsonb)`,
+        [s.org_id, actor["human_id"], input.request_id, content, JSON.stringify(receipt)],
+      );
+      await this.current(c, s, true);
+      return { receipt, current, replayed: false };
+    });
   }
   async audit(
     s: OrganizationScope,
@@ -452,7 +538,7 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       ) {
         const count = (
           await c.query(
-            `SELECT count(*)::integer AS n FROM ${I}.memberships m JOIN ${I}.humans h ON h.id=m.human_id WHERE m.org_id=$1 AND m.role='owner' AND m.status='active' AND h.status='active'`,
+            `SELECT count(*)::integer AS n FROM ${I}.memberships m JOIN ${I}.humans h ON h.id=m.human_id WHERE m.org_id=$1 AND m.role='owner' AND m.status='active' AND h.status='active' AND NOT COALESCE((to_jsonb(m)->>'emergency_held')::boolean,false)`,
             [s.org_id],
           )
         ).rows[0];
@@ -503,6 +589,10 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       );
       await this.session(c, s.session_digest);
     });
+  }
+  private async rejectHeld(c: SqlConnection, org: string, human: string): Promise<void> {
+    const row = (await c.query(`SELECT COALESCE((to_jsonb(m)->>'emergency_held')::boolean,false) AS held FROM ${I}.memberships m WHERE org_id=$1 AND human_id=$2`, [org, human])).rows[0];
+    if (row?.["held"] === true) throw new OrganizationError("forbidden");
   }
   private async canRead(
     c: SqlConnection,
@@ -614,6 +704,7 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
         await this.current(c, s, true);
         return { invitation: invitationView(old), credential_issued: false };
       }
+      await this.rejectHeld(c, s.org_id, i.human_id);
       const settings = await this.setting(c, s.org_id);
       if (settings.object_version !== i.expected_settings_version)
         throw new OrganizationError("version_conflict");
@@ -738,6 +829,7 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
         return r;
       };
       const i = await load();
+      await this.rejectHeld(c, org, human);
       const resources = i["resource_ids"] as string[];
       for (const rid of resources)
         if (!(await this.canRead(c, org, inviter, rid)))

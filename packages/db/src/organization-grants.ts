@@ -15,6 +15,14 @@ export function organizationGrantSql(manager: string, reader: string): string {
    EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), '${manager}');
  END;
  $organization_connect$;
+ DO $emergency_grants$
+ BEGIN
+   IF to_regclass('zentwine_organizations.emergency_receipts') IS NOT NULL THEN
+     EXECUTE 'GRANT UPDATE(emergency_held,emergency_version) ON zentwine_identity.memberships TO ${m}';
+     EXECUTE 'GRANT SELECT,INSERT ON zentwine_organizations.emergency_receipts TO ${m}';
+   END IF;
+ END;
+ $emergency_grants$;
  GRANT USAGE ON SCHEMA zentwine_identity,zentwine_policy,zentwine_organizations,zentwine_approvals TO ${m};
  GRANT SELECT ON ALL TABLES IN SCHEMA zentwine_identity,zentwine_policy,zentwine_organizations,zentwine_approvals TO ${m};
  GRANT INSERT ON zentwine_organizations.settings,zentwine_organizations.connections,zentwine_organizations.invitations,zentwine_organizations.session_cutoffs,zentwine_organizations.provisioning_receipts,zentwine_organizations.federated_tickets,zentwine_organizations.events TO ${m};

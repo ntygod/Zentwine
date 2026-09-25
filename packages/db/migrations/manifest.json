@@ -96,6 +96,22 @@
         "path": "packages/db/migrations/0006-organization-audit-view.verify.sql",
         "sha256": "b8c6a8b6ded6cb258e49ade007e583b676bc3bffaaa4daeb1fa0ddc968a402ea"
       }
+    },
+    {
+      "id": "0007-emergency-containment",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0007-emergency-containment.up.sql",
+        "sha256": "b77268055a6415b716f89d0c68d4d9ea8a34190b0f7481f12f6d225f156c2714"
+      },
+      "down": {
+        "path": "packages/db/migrations/0007-emergency-containment.down.sql",
+        "sha256": "12b3e1625a0a0bf60b0651ba1fdc4aad1130fe639887b07515eebc19cc51988d"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0007-emergency-containment.verify.sql",
+        "sha256": "9d55ff08471184d87e4f7ad08b0e16ab4b3344fe89a12a9d2cd2105ac49d2faa"
+      }
     }
   ]
 }

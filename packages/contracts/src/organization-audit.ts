@@ -9,6 +9,8 @@ export const organizationAuditKinds = [
   "connection.updated",
   "identity.linked",
   "identity.provisioned",
+  "member.emergency_held",
+  "member.emergency_released",
 ] as const;
 export type OrganizationAuditKind = (typeof organizationAuditKinds)[number];
 export interface OrganizationAuditEntry {
@@ -100,6 +102,8 @@ const subjects: Record<
   "connection.updated": "identity_connection",
   "identity.linked": "external_identity",
   "identity.provisioned": "external_identity",
+  "member.emergency_held": "membership",
+  "member.emergency_released": "membership",
 };
 const isObject = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);

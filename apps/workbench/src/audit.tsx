@@ -13,6 +13,8 @@ export const auditLabels: Record<OrganizationAuditKind, string> = {
   "connection.updated": "身份连接已更新",
   "identity.linked": "外部身份已绑定",
   "identity.provisioned": "身份同步已提交",
+  "member.emergency_held": "成员已应急阻断",
+  "member.emergency_released": "成员应急阻断已解除",
 };
 const subjects = {
   organization: "组织",

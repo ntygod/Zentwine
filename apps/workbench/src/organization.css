@@ -240,3 +240,16 @@
   min-width: 0;
   max-width: 100%;
 }
+
+.org-emergency select, .org-emergency input {
+  max-width: 100%;
+  min-width: 0;
+}
+.org-emergency-identity, .org-emergency-receipt {
+  overflow-wrap: anywhere;
+}
+.org-emergency-receipt {
+  border-left: 3px solid var(--accent, #8b7cf8);
+  padding: 12px;
+  margin-top: 12px;
+}

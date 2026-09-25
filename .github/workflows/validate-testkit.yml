@@ -46,6 +46,7 @@ jobs:
           mkdir -p reports
           npm install --global pnpm@11.10.0 --ignore-scripts
           pnpm install --frozen-lockfile
+          tar -czf reports/pinned-formatter.tgz -C node_modules/prettier .
           pnpm build
       - name: Initialize only the disposable service guard
         run: |
@@ -112,6 +113,14 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Verify emergency containment and recovery on real transports
+        run: |
+          pnpm test:emergency-integration 2>&1 | tee reports/emergency-tests.log
+          set +e
+          env -u ZENTWINE_TEST_DATABASE_URL -u ZENTWINE_TEST_DATABASE_ACK node scripts/run-emergency-tests.mjs > reports/emergency-missing-config.log 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 1
       - name: Verify the explicit access matrix on PostgreSQL and real transports
         run: |
           pnpm test:access-matrix 2>&1 | tee reports/access-matrix-tests.log
@@ -150,6 +159,8 @@ jobs:
           pnpm test:organizations-ui 2>&1 | tee reports/organization-browser-tests.log
       - name: Verify actual audit view with Chromium and PostgreSQL
         run: pnpm test:audit-ui 2>&1 | tee reports/audit-browser-tests.log
+      - name: Verify actual emergency control with Chromium and PostgreSQL
+        run: pnpm test:emergency-ui 2>&1 | tee reports/emergency-browser-tests.log
       - name: Verify missing configuration cannot silently skip integration
         run: |
           set +e

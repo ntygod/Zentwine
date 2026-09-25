@@ -10,7 +10,7 @@ export async function membershipAccess(
     await c.query(
       `SELECT COALESCE(to_jsonb(m)->>'access_kind','member') AS kind,
  COALESCE((to_jsonb(m)->>'access_expires_at')::timestamptz>clock_timestamp(),true) AS unexpired
- FROM zentwine_identity.memberships m WHERE org_id=$1 AND human_id=$2 AND status='active'`,
+ FROM zentwine_identity.memberships m WHERE org_id=$1 AND human_id=$2 AND status='active' AND NOT COALESCE((to_jsonb(m)->>'emergency_held')::boolean,false)`,
       [org, human],
     )
   ).rows[0];

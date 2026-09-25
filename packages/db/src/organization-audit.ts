@@ -37,6 +37,8 @@ const subjectKinds: Record<
   "connection.updated": "identity_connection",
   "identity.linked": "external_identity",
   "identity.provisioned": "external_identity",
+  "member.emergency_held": "membership",
+  "member.emergency_released": "membership",
 };
 function sequence(v: unknown): v is string {
   return (
