@@ -52,7 +52,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
     let broken = false;
     try {
       c = await this.pool.connect();
-      await c.query("BEGIN");
+      await c.query("BEGIN ISOLATION LEVEL READ COMMITTED");
       const result = await work(c);
       await c.query("COMMIT");
       return result;
