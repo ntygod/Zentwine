@@ -8,6 +8,7 @@ import {
   createIdentityPool,
   PostgresIdentityRepository,
   PostgresPolicyRepository,
+  PostgresAgentRepository,
   type IdentityPool,
 } from "@zentwine/db";
 import { buildApp } from "./app.js";
@@ -45,7 +46,23 @@ async function main(): Promise<void> {
       throw e;
     }
   }
+  let agents: PostgresAgentRepository | undefined;
+  if (
+    process.env["ZENTWINE_AGENT_MODE"] !== undefined &&
+    process.env["ZENTWINE_AGENT_MODE"] !== "disabled"
+  ) {
+    try {
+      if (process.env["ZENTWINE_AGENT_MODE"] !== "local" || !pool || !policy)
+        throw new ConfigurationError("ZENTWINE_AGENT_MODE", "unsupported");
+      agents = new PostgresAgentRepository(pool);
+      await agents.assertRuntimeRole();
+    } catch (e) {
+      await pool?.end();
+      throw e;
+    }
+  }
   const app = buildApp({
+    ...(agents ? { agents } : {}),
     ...(policy ? { policy } : {}),
     config,
     logSink: sink,

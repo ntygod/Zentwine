@@ -32,6 +32,22 @@
         "path": "packages/db/migrations/0002-authorization-core.verify.sql",
         "sha256": "01fbb96d014b18e62983eb9079c8b8548ebc30955589f2def840356ab9a27f2c"
       }
+    },
+    {
+      "id": "0003-agent-delegations",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0003-agent-delegations.up.sql",
+        "sha256": "61355658671148da8f8eaa479d1d5132daa1b54219b6ef3caf9cc8a65fbb6a9a"
+      },
+      "down": {
+        "path": "packages/db/migrations/0003-agent-delegations.down.sql",
+        "sha256": "5a4660e184a8c73ad22dc9e9abf3d8e12deaf3b8eca11bf988928126193cb082"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0003-agent-delegations.verify.sql",
+        "sha256": "f1efd973ab719520e76cc8f373539295e0625819f38a291223b39f63ac8469e2"
+      }
     }
   ]
 }

@@ -1,3 +1,8 @@
+import {
+  registerAgentOwnerRoutes,
+  registerAgentExecutionRoutes,
+} from "./agents/routes.js";
+import type { AgentRepository } from "@zentwine/policy";
 import { registerPolicyRoutes } from "./policy/routes.js";
 import { registerPolicySocket } from "./policy/socket.js";
 import type { PolicyRepository } from "@zentwine/policy";
@@ -31,6 +36,7 @@ import {
 export interface AppOptions {
   identity?: IdentityRoutesOptions;
   policy?: PolicyRepository;
+  agents?: AgentRepository;
   now?: () => Date;
   clock?: Clock;
   monotonicClock?: MonotonicClock;
@@ -174,6 +180,16 @@ export function buildApp(options: AppOptions = {}) {
     };
     app.register(registerPolicyRoutes, policyOptions);
     registerPolicySocket(app, policyOptions);
+  }
+  if (options.agents) {
+    if (!options.identity || !options.policy)
+      throw new AppError("invalid_input");
+    const agentOptions = {
+      repository: options.agents,
+      origins: options.identity.origins,
+    };
+    app.register(registerAgentOwnerRoutes, agentOptions);
+    app.register(registerAgentExecutionRoutes, agentOptions);
   }
   return app;
 }

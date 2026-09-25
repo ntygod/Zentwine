@@ -76,3 +76,7 @@ python scripts/validate_plans.py
 ## 授权内核（ZT02-02）
 
 本机身份模式下可显式启用资源目录授权，HTTP、工具与WebSocket共用策略。默认不开启，无新增登录/权限UI。见[授权指南](docs/development/authorization-policy.md)及[执行记录](docs/tasks/ZT02-02-execution.md)。`pnpm test:policy`运行纯规则，专用PG就绪后`pnpm test:policy-integration`验证真实边界。
+
+## Agent身份与授权链（ZT02-03）
+
+本机身份模式下新增Agent责任链、收窄授权、调用额度与不可变快照；默认关闭，真实模型尚未接通。使用方式见[开发指南](docs/development/agent-delegations.md)，真实执行仍限目录读取/改名。

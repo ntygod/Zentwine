@@ -150,3 +150,5 @@ export function workspacePath(orgId: string, workspaceId: string): string {
 export * from "./identity.js";
 
 export * from "./policy.js";
+
+export * from "./agents.js";
