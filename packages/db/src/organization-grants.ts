@@ -8,7 +8,14 @@ export function organizationGrantSql(manager: string, reader: string): string {
     throw new TypeError("Invalid separate role names");
   const m = `"${manager}"`,
     r = `"${reader}"`;
-  return `GRANT USAGE ON SCHEMA zentwine_identity,zentwine_policy,zentwine_organizations,zentwine_approvals TO ${m};
+  // Database ACLs are separate from schema/table ACLs. Keep PUBLIC revoked and
+  // grant only CONNECT on the operator's current database to the manager.
+  return `DO $organization_connect$
+ BEGIN
+   EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), '${manager}');
+ END;
+ $organization_connect$;
+ GRANT USAGE ON SCHEMA zentwine_identity,zentwine_policy,zentwine_organizations,zentwine_approvals TO ${m};
  GRANT SELECT ON ALL TABLES IN SCHEMA zentwine_identity,zentwine_policy,zentwine_organizations,zentwine_approvals TO ${m};
  GRANT INSERT ON zentwine_organizations.settings,zentwine_organizations.connections,zentwine_organizations.invitations,zentwine_organizations.session_cutoffs,zentwine_organizations.provisioning_receipts,zentwine_organizations.federated_tickets,zentwine_organizations.events TO ${m};
  GRANT UPDATE(locale,time_zone,invitations_enabled,invite_ttl_hours,guest_ttl_days,object_version) ON zentwine_organizations.settings TO ${m};

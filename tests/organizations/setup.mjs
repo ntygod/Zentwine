@@ -1,5 +1,6 @@
 /** Synthetic people and normalized IdP inputs in a real, disposable database. No live identity provider. */
 import fs from "node:fs/promises";
+import assert from "node:assert/strict";
 import { randomUUID, randomBytes } from "node:crypto";
 import {
   fixture as approvalFixture,
@@ -42,6 +43,23 @@ export async function fixture(work) {
       await query(f.adminPool, organizationGrantSql(role, f.appConfig.user));
       managerPool = createIdentityPool(
         dsn({ ...f.appConfig, user: role, password }),
+      );
+      assert.deepEqual(
+        (
+          await query(
+            managerPool,
+            `SELECT has_database_privilege(current_user,current_database(),'CONNECT') AS can_connect,
+             has_database_privilege(current_user,current_database(),'CREATE') AS can_create,
+             has_database_privilege(current_user,current_database(),'TEMP') AS can_temp,
+             EXISTS(SELECT 1 FROM pg_database d CROSS JOIN LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) a WHERE d.datname=current_database() AND a.grantee=0 AND a.privilege_type='CONNECT') AS public_connect`,
+          )
+        ).rows[0],
+        {
+          can_connect: true,
+          can_create: false,
+          can_temp: false,
+          public_connect: false,
+        },
       );
       const organizations = new PostgresOrganizationRepository(managerPool),
         federation = new PostgresFederationAdmin(f.adminPool);
