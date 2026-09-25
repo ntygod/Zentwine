@@ -110,7 +110,20 @@ export class PostgresIdentityRepository implements IdentityRepository {
       )
     ).rows[0];
     if (!r) throw new IdentityError("authentication_required");
-    return r;
+    // A row lock can wait past expiry or a human epoch change. Re-read with a
+    // new READ COMMITTED statement snapshot after the lock is actually owned.
+    const current = (
+      await c.query(
+        `SELECT s.*,h.display_name AS human_name FROM ${S}.sessions s
+        JOIN ${S}.humans h ON h.id=s.human_id WHERE s.id=$1 AND s.digest=$2
+        AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
+        AND s.idle_expires_at>clock_timestamp() AND h.status='active'
+        AND h.auth_version=s.auth_version`,
+        [text(r, "id"), secretDigest],
+      )
+    ).rows[0];
+    if (!current) throw new IdentityError("authentication_required");
+    return current;
   }
   private async view(
     c: SqlConnection,
@@ -182,12 +195,24 @@ export class PostgresIdentityRepository implements IdentityRepository {
     digest(sessionDigest);
     if (priorSessionDigest) digest(priorSessionDigest);
     return this.transaction(async (c) => {
-      const t = (
+      let t = (
         await c.query(
           `SELECT t.*,h.display_name AS human_name FROM ${S}.login_tickets t
         JOIN ${S}.humans h ON h.id=t.human_id WHERE t.digest=$1 AND t.consumed_at IS NULL
         AND t.expires_at>clock_timestamp() AND h.status='active' AND h.auth_version=t.auth_version
         FOR UPDATE OF t`,
+          [ticketDigest],
+        )
+      ).rows[0];
+      if (!t) throw new IdentityError("invalid_login");
+      // The ticket must still be usable after waiting, not only when the first
+      // statement began. Human status is not protected by the ticket row lock.
+      t = (
+        await c.query(
+          `SELECT t.*,h.display_name AS human_name FROM ${S}.login_tickets t
+          JOIN ${S}.humans h ON h.id=t.human_id WHERE t.digest=$1
+          AND t.consumed_at IS NULL AND t.expires_at>clock_timestamp()
+          AND h.status='active' AND h.auth_version=t.auth_version`,
           [ticketDigest],
         )
       ).rows[0];

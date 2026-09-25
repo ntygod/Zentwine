@@ -276,7 +276,7 @@ test("identity db: absolute expiry dominates idle extension", () =>
     const { token } = await f.login();
     await query(
       f.adminPool,
-      "UPDATE zentwine_identity.sessions SET created_at=clock_timestamp()-interval '9 hours',expires_at=clock_timestamp()-interval '1 second',idle_expires_at=clock_timestamp()-interval '1 second'",
+      "UPDATE zentwine_identity.sessions SET created_at=statement_timestamp()-interval '9 hours',expires_at=statement_timestamp()-interval '1 second',idle_expires_at=statement_timestamp()-interval '1 second'",
     );
     await assert.rejects(
       f.repo.readSession(secretDigest(token)),
@@ -488,4 +488,136 @@ test("identity http: post login replaces supplied session instead of fixing it",
     } finally {
       await a.close();
     }
+  }));
+
+// Wait for an actual PostgreSQL lock wait; do not assume a scheduled Promise has acquired a snapshot.
+async function whileRowLocked(f, relation, hash, operation, change) {
+  assert.ok(["sessions", "login_tickets"].includes(relation));
+  const holder = await f.adminPool.connect();
+  let result;
+  try {
+    await holder.query("BEGIN");
+    await holder.query(
+      `SELECT digest FROM zentwine_identity.${relation} WHERE digest=$1 FOR UPDATE`,
+      [hash],
+    );
+    result = operation().then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    );
+    let waiting = false;
+    for (let i = 0; i < 100; i++) {
+      const r = await query(
+        f.adminPool,
+        "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE usename=$1 AND wait_event_type='Lock') AS waiting",
+        [f.appConfig.user],
+      );
+      if (r.rows[0].waiting) {
+        waiting = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(
+      waiting,
+      true,
+      "the real identity query must be blocked before the mutation",
+    );
+    await change();
+  } finally {
+    await holder.query("ROLLBACK");
+    holder.release();
+  }
+  return result;
+}
+
+test("identity db: human disabled while session query waits is checked after lock acquisition", () =>
+  fixture(async (f) => {
+    const { token } = await f.login();
+    const hash = secretDigest(token);
+    const r = await whileRowLocked(
+      f,
+      "sessions",
+      hash,
+      () => f.repo.readSession(hash),
+      () => f.admin.setHumanStatus(f.alice, "disabled"),
+    );
+    assert.equal(r.error?.code, "authentication_required");
+    assert.equal(r.value, undefined);
+  }));
+
+test("identity db: human disabled while ticket query waits cannot create a session", () =>
+  fixture(async (f) => {
+    const t = await f.ticket(f.alice),
+      hash = secretDigest(t);
+    const r = await whileRowLocked(
+      f,
+      "login_tickets",
+      hash,
+      () => f.repo.consumeTicket(hash, secretDigest(secret())),
+      () => f.admin.setHumanStatus(f.alice, "disabled"),
+    );
+    assert.equal(r.error?.code, "invalid_login");
+    assert.equal(
+      (await query(f.adminPool, "SELECT * FROM zentwine_identity.sessions"))
+        .rows.length,
+      0,
+    );
+  }));
+
+test("identity db: session idle deadline reached during lock wait cannot be extended", () =>
+  fixture(async (f) => {
+    const { token } = await f.login(),
+      hash = secretDigest(token);
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_identity.sessions SET idle_expires_at=clock_timestamp()+interval '2 seconds'",
+    );
+    const r = await whileRowLocked(
+      f,
+      "sessions",
+      hash,
+      () => f.repo.readSession(hash),
+      () =>
+        query(
+          f.adminPool,
+          "SELECT pg_sleep(GREATEST(0,EXTRACT(EPOCH FROM idle_expires_at-clock_timestamp()))+0.05) FROM zentwine_identity.sessions WHERE digest=$1",
+          [hash],
+        ),
+    );
+    assert.equal(r.error?.code, "authentication_required");
+    const rows = await query(
+      f.adminPool,
+      "SELECT idle_expires_at<=clock_timestamp() AS expired FROM zentwine_identity.sessions WHERE digest=$1",
+      [hash],
+    );
+    assert.equal(rows.rows[0].expired, true);
+  }));
+
+test("identity db: ticket expiry reached during lock wait is not accepted", () =>
+  fixture(async (f) => {
+    const t = await f.ticket(f.alice),
+      hash = secretDigest(t);
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_identity.login_tickets SET expires_at=clock_timestamp()+interval '2 seconds'",
+    );
+    const r = await whileRowLocked(
+      f,
+      "login_tickets",
+      hash,
+      () => f.repo.consumeTicket(hash, secretDigest(secret())),
+      () =>
+        query(
+          f.adminPool,
+          "SELECT pg_sleep(GREATEST(0,EXTRACT(EPOCH FROM expires_at-clock_timestamp()))+0.05) FROM zentwine_identity.login_tickets WHERE digest=$1",
+          [hash],
+        ),
+    );
+    assert.equal(r.error?.code, "invalid_login");
+    assert.equal(
+      (await query(f.adminPool, "SELECT * FROM zentwine_identity.sessions"))
+        .rows.length,
+      0,
+    );
   }));
