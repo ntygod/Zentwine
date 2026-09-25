@@ -58,7 +58,10 @@
     "test:organizations-ui": "node scripts/run-organization-tests.mjs --browser",
     "organizations:admin": "node scripts/organization-admin.mjs",
     "test:access-matrix": "node scripts/run-access-matrix.mjs",
-    "access-matrix:check": "node scripts/run-access-matrix.mjs --check"
+    "access-matrix:check": "node scripts/run-access-matrix.mjs --check",
+    "test:audit": "node --test tests/organization-audit.test.mjs",
+    "test:audit-integration": "node scripts/run-audit-tests.mjs",
+    "test:audit-ui": "node scripts/run-audit-tests.mjs --browser"
   },
   "devDependencies": {
     "typescript": "6.0.2",

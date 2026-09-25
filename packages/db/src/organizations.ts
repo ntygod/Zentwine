@@ -1,6 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, randomBytes } from "node:crypto";
 import {
   OrganizationError,
+  validateAuditQuery,
+  type OrganizationAuditQuery,
+  type OrganizationAuditPage,
   isIdentityId,
   isContextVersion,
   validateSettings,
@@ -28,6 +31,7 @@ import {
   type ResourceGrant,
 } from "@zentwine/policy";
 import type { IdentityPool, SqlConnection } from "./connection.js";
+import { readOrganizationAudit } from "./organization-audit.js";
 import { authorizationLock } from "./authorization-locks.js";
 import { invalidateApprovals } from "./approval-events.js";
 import {
@@ -158,6 +162,7 @@ const externalView = (r: Row): ExternalIdentityView => ({
 });
 /** Separate trusted organization-control connection, never handed to model tools or untrusted extensions. */
 export class PostgresOrganizationRepository implements OrganizationRepository {
+  private readonly auditCursorKey = randomBytes(32);
   constructor(private readonly pool: IdentityPool) {}
   async assertRuntimeRole(): Promise<void> {
     return tx(this.pool, async (c) => {
@@ -302,6 +307,15 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       `INSERT INTO ${O}.session_cutoffs(org_id,human_id,invalid_before) VALUES($1,$2,clock_timestamp()) ON CONFLICT(org_id,human_id) DO UPDATE SET invalid_before=GREATEST(${O}.session_cutoffs.invalid_before,EXCLUDED.invalid_before)`,
       [org, human],
     );
+  }
+  async audit(s: OrganizationScope, input: OrganizationAuditQuery): Promise<OrganizationAuditPage> {
+    validateAuditQuery(input);
+    return tx(this.pool, async (c) => {
+      await this.begin(c, s, [], true, false);
+      const page = await readOrganizationAudit(c, s, input, this.auditCursorKey);
+      await this.current(c, s, true);
+      return page;
+    });
   }
   async settings(s: OrganizationScope): Promise<OrganizationSettings> {
     return tx(this.pool, async (c) => {

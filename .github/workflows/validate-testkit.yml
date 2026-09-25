@@ -47,6 +47,17 @@ jobs:
           npm install --global pnpm@11.10.0 --ignore-scripts
           pnpm install --frozen-lockfile
           pnpm build
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { execFileSync } from 'node:child_process';
+          const files = execFileSync('git',['diff','--name-only','f58ae5433a282a97df365fb65ee9ec7066209b50','HEAD'],{encoding:'utf8'}).trim().split('\n').filter(p => /\.(ts|tsx|mjs|json|css)$/.test(p));
+          for (const file of files) {
+            const target = path.join('reports/formatting',file);
+            fs.mkdirSync(path.dirname(target),{recursive:true});
+            fs.writeFileSync(target,execFileSync(process.execPath,['node_modules/prettier/bin/prettier.cjs',file]));
+          }
+          JS
       - name: Initialize only the disposable service guard
         run: |
           node --input-type=module - <<'JS'
@@ -104,6 +115,14 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 1
+      - name: Verify scoped audit projection and revocation on PostgreSQL and HTTP
+        run: |
+          pnpm test:audit-integration 2>&1 | tee reports/audit-tests.log
+          set +e
+          env -u ZENTWINE_TEST_DATABASE_URL -u ZENTWINE_TEST_DATABASE_ACK node scripts/run-audit-tests.mjs > reports/audit-missing-config.log 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 1
       - name: Verify the explicit access matrix on PostgreSQL and real transports
         run: |
           pnpm test:access-matrix 2>&1 | tee reports/access-matrix-tests.log
@@ -140,6 +159,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y fonts-noto-cjk
           pnpm test:organizations-ui 2>&1 | tee reports/organization-browser-tests.log
+      - name: Verify actual audit view with Chromium and PostgreSQL
+        run: pnpm test:audit-ui 2>&1 | tee reports/audit-browser-tests.log
       - name: Verify missing configuration cannot silently skip integration
         run: |
           set +e

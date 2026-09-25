@@ -1,4 +1,5 @@
 import { isIdentityId, isContextVersion, type MemberRole } from "./identity.js";
+import type { OrganizationAuditQuery, OrganizationAuditPage } from "./organization-audit.js";
 /** Organization application ports. Provider verifiers are trusted server adapters, never browser claims. */
 export const ORGANIZATION_VERSION = "1.0.0" as const;
 export type OrganizationErrorCode =
@@ -120,6 +121,7 @@ export interface SsoPortRepository {
   ): Promise<void>;
 }
 export interface OrganizationRepository extends SsoPortRepository {
+  audit(s: OrganizationScope, input: OrganizationAuditQuery): Promise<OrganizationAuditPage>;
   self(s: OrganizationScope): Promise<ManagedMember>;
   settings(s: OrganizationScope): Promise<OrganizationSettings>;
   updateSettings(
