@@ -72,3 +72,7 @@ python scripts/validate_plans.py
 ## 组织与登录会话
 
 [ZT02-01身份开发指南](docs/development/identity-sessions.md)：独立本机身份数据库、受信任票据签发、会话/组织选择API，以及真实数据库集成测试。默认`pnpm dev`不读取身份凭据或自动迁移。
+
+## 授权内核（ZT02-02）
+
+本机身份模式下可显式启用资源目录授权，HTTP、工具与WebSocket共用策略。默认不开启，无新增登录/权限UI。见[授权指南](docs/development/authorization-policy.md)及[执行记录](docs/tasks/ZT02-02-execution.md)。`pnpm test:policy`运行纯规则，专用PG就绪后`pnpm test:policy-integration`验证真实边界。

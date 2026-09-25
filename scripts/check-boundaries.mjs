@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 export const rules = {
   "@zentwine/domain": [],
-  "@zentwine/db": ["@zentwine/domain", "pg"],
+  "@zentwine/policy": ["@zentwine/domain"],
+  "@zentwine/db": ["@zentwine/domain", "@zentwine/policy", "pg"],
   "@zentwine/contracts": [],
   "@zentwine/config": [],
   "@zentwine/telemetry": ["@zentwine/contracts", "@zentwine/domain"],
@@ -12,6 +13,8 @@ export const rules = {
   "@zentwine/testkit": ["@zentwine/domain"],
   "@zentwine/ui": ["@zentwine/client", "@zentwine/contracts", "react"],
   "@zentwine/api": [
+    "@zentwine/policy",
+    "ws",
     "@zentwine/db",
     "@zentwine/domain",
     "@zentwine/contracts",

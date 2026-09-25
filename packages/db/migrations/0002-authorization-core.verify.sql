@@ -1,0 +1,1 @@
+SELECT (to_regclass('zentwine_policy.organization_policies') IS NOT NULL AND to_regclass('zentwine_policy.resources') IS NOT NULL AND to_regclass('zentwine_policy.role_bindings') IS NOT NULL AND to_regclass('zentwine_policy.resource_grants') IS NOT NULL) AS verified;

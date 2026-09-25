@@ -1,3 +1,4 @@
+import { authorizationLock } from "./authorization-locks.js";
 import { randomUUID } from "node:crypto";
 import {
   IdentityError,
@@ -398,6 +399,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
     )
       throw new IdentityError("invalid_input");
     await this.transaction(async (c) => {
+      await authorizationLock(c, `membership:${org}:${human}`, false);
       await c.query(
         `INSERT INTO ${S}.memberships(id,org_id,human_id,display_number,role,status) VALUES($1,$2,$3,$4,$5,$6)
       ON CONFLICT(org_id,human_id) DO UPDATE SET role=EXCLUDED.role,status=EXCLUDED.status,object_version=${S}.memberships.object_version+1`,
@@ -430,6 +432,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
     if (!["active", "disabled"].includes(status))
       throw new IdentityError("invalid_input");
     await this.transaction(async (c) => {
+      await authorizationLock(c, `human:${human}`, false);
       await c.query(
         `UPDATE ${S}.humans SET status=$1,auth_version=auth_version+1 WHERE id=$2`,
         [status, human],
@@ -444,6 +447,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
     if (!["active", "disabled"].includes(status))
       throw new IdentityError("invalid_input");
     await this.transaction(async (c) => {
+      await authorizationLock(c, `organization:${org}`, false);
       await c.query(
         `UPDATE ${S}.organizations SET status=$1,object_version=object_version+1 WHERE id=$2`,
         [status, org],

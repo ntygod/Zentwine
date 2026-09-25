@@ -9,7 +9,9 @@
     "@zentwine/telemetry": "workspace:*",
     "fastify": "5.12.5",
     "@zentwine/db": "workspace:*",
-    "@zentwine/domain": "workspace:*"
+    "@zentwine/domain": "workspace:*",
+    "@zentwine/policy": "workspace:*",
+    "ws": "8.21.3"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

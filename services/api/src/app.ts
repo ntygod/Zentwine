@@ -1,3 +1,6 @@
+import { registerPolicyRoutes } from "./policy/routes.js";
+import { registerPolicySocket } from "./policy/socket.js";
+import type { PolicyRepository } from "@zentwine/policy";
 import Fastify, { type FastifyRequest } from "fastify";
 import {
   CONTRACT_VERSION,
@@ -27,6 +30,7 @@ import {
 } from "./identity/routes.js";
 export interface AppOptions {
   identity?: IdentityRoutesOptions;
+  policy?: PolicyRepository;
   now?: () => Date;
   clock?: Clock;
   monotonicClock?: MonotonicClock;
@@ -162,5 +166,14 @@ export function buildApp(options: AppOptions = {}) {
     }),
   );
   if (options.identity) app.register(registerIdentityRoutes, options.identity);
+  if (options.policy) {
+    if (!options.identity) throw new AppError("invalid_input");
+    const policyOptions = {
+      repository: options.policy,
+      origins: options.identity.origins,
+    };
+    app.register(registerPolicyRoutes, policyOptions);
+    registerPolicySocket(app, policyOptions);
+  }
   return app;
 }

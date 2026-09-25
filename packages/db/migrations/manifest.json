@@ -16,6 +16,22 @@
         "path": "packages/db/migrations/0001-identity-core.verify.sql",
         "sha256": "76e285ce086c06ad6597a485f1555443892a0de7bf146f40da1ed54f7d63ca48"
       }
+    },
+    {
+      "id": "0002-authorization-core",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0002-authorization-core.up.sql",
+        "sha256": "9262fbe8939a83396e67d90559e63979407c28f1b5b14f8948d456853b3d6631"
+      },
+      "down": {
+        "path": "packages/db/migrations/0002-authorization-core.down.sql",
+        "sha256": "d869ea37ff696c1cbca0b8205927b41cc6f5ff62d558176de9513e0d590a6430"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0002-authorization-core.verify.sql",
+        "sha256": "01fbb96d014b18e62983eb9079c8b8548ebc30955589f2def840356ab9a27f2c"
+      }
     }
   ]
 }
