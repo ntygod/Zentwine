@@ -19,3 +19,6 @@
 - [ADR-010 本地开发生命周期](ADR-010-local-development-lifecycle.md)：统一环境、清理边界、诊断与故障入口。
 
 - [ADR-012 统一授权](ADR-012-authorization-policy.md)：精确资源策略、事务授权与多入口一致性。
+
+- [ADR-011 本机身份](ADR-011-identity-sessions.md)：一次性票据、持久会话和可信组织上下文。
+- [ADR-013 Agent授权链](ADR-013-agent-delegation.md)：责任人、收窄授权、额度预留、快照与撤权。
