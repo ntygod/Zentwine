@@ -1,3 +1,4 @@
+import { membershipAccess } from "./organization-guards.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   isIdentityId,
@@ -177,7 +178,9 @@ export class PostgresAgentRepository implements AgentRepository {
         [human, org],
       )
     ).rows[0];
-    if (!r) throw new DelegationError("unavailable_resource");
+    const access = await membershipAccess(c, org, human);
+    if (!r || !access.allowed || access.guest)
+      throw new DelegationError("unavailable_resource");
     return {
       human,
       org,
@@ -205,7 +208,7 @@ export class PostgresAgentRepository implements AgentRepository {
     await this.locks(c, human, s.org_id);
     const row = (
       await c.query(
-        `SELECT s.context_version,s.active_org_id FROM ${I}.sessions s JOIN ${I}.humans h ON h.id=s.human_id
+        `SELECT s.context_version,s.active_org_id,s.created_at FROM ${I}.sessions s JOIN ${I}.humans h ON h.id=s.human_id
       WHERE s.digest=$1 AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.idle_expires_at>clock_timestamp()
       AND h.status='active' AND h.auth_version=s.auth_version`,
         [s.session_digest],
@@ -214,7 +217,10 @@ export class PostgresAgentRepository implements AgentRepository {
     if (!row) throw new DelegationError("authentication_required");
     if (num(row, "context_version") !== s.context_version)
       throw new DelegationError("version_conflict");
-    if (row["active_org_id"] !== s.org_id)
+    if (
+      row["active_org_id"] !== s.org_id ||
+      !(await membershipAccess(c, s.org_id, human, s.session_digest)).allowed
+    )
       throw new DelegationError("unavailable_resource");
     return this.authority(c, human, s.org_id);
   }

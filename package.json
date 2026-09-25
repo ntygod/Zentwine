@@ -52,7 +52,11 @@
     "agents:admin": "node scripts/agent-admin.mjs",
     "test:approvals": "node --test tests/approvals.test.mjs",
     "test:approvals-integration": "node scripts/run-approval-tests.mjs",
-    "approvals:admin": "node scripts/approval-admin.mjs"
+    "approvals:admin": "node scripts/approval-admin.mjs",
+    "test:organizations": "node --test tests/organizations.test.mjs",
+    "test:organizations-integration": "node scripts/run-organization-tests.mjs",
+    "test:organizations-ui": "node scripts/run-organization-tests.mjs --browser",
+    "organizations:admin": "node scripts/organization-admin.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",

@@ -62,6 +62,7 @@ export interface PolicyFacts {
   readonly human_id: string;
   readonly org_id: string;
   readonly membership_role: MemberRole;
+  readonly membership_kind?: "member" | "guest";
   readonly membership_version: number;
   readonly session_valid_until: number;
   readonly observed_at: number;
@@ -136,6 +137,8 @@ function validFacts(f: PolicyFacts): boolean {
     isIdentityId(f.human_id) &&
     isIdentityId(f.org_id) &&
     memberRoles.includes(f.membership_role) &&
+    (f.membership_kind === undefined ||
+      ["member", "guest"].includes(f.membership_kind)) &&
     isContextVersion(f.membership_version) &&
     isContextVersion(f.policy_revision) &&
     epoch(f.observed_at) &&
@@ -216,6 +219,12 @@ export function evaluatePolicy(
   if (grants.some((g) => g.effect === "deny"))
     return result("deny", "explicit_deny");
   const explicit = grants.some((g) => g.effect === "allow");
+  // A guest never inherits organization visibility or owner/writer privileges.
+  if (f.membership_kind === "guest") {
+    if (action !== "resource.read" || (!explicit && !bindings.length))
+      return result("deny", "no_permission");
+    return result("allow", "allowed");
+  }
   const owned = f.resource.owner_human_id === f.human_id;
   if (
     f.resource.visibility === "restricted" &&

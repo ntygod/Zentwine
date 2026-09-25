@@ -64,6 +64,22 @@
         "path": "packages/db/migrations/0004-bound-approvals.verify.sql",
         "sha256": "f940d9cf26312b25a12593c4e9fe00458df3668c28e7404e1d63370c15cc0793"
       }
+    },
+    {
+      "id": "0005-organization-lifecycle",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0005-organization-lifecycle.up.sql",
+        "sha256": "40d47c44fa8f69ebd533951dd5bfbfdca58c9c385a44608818a41cc1f986af8f"
+      },
+      "down": {
+        "path": "packages/db/migrations/0005-organization-lifecycle.down.sql",
+        "sha256": "30ac95ef20f6b681b6bc263760720ca2ee3a3d27d52f2c75fa681f3a52c47a44"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0005-organization-lifecycle.verify.sql",
+        "sha256": "47a109c2adfd1cb6e2c6f47bf31624aa961a23e5fddb4651abdaec573946849b"
+      }
     }
   ]
 }

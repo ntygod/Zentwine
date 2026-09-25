@@ -1,0 +1,1 @@
+SELECT (to_regclass('zentwine_organizations.settings') IS NOT NULL AND to_regclass('zentwine_organizations.invitations') IS NOT NULL AND to_regclass('zentwine_organizations.external_identities') IS NOT NULL AND EXISTS(SELECT 1 FROM pg_constraint WHERE conname='membership_access_boundary')) AS verified;

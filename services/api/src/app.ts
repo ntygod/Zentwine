@@ -1,3 +1,8 @@
+import {
+  registerOrganizationRoutes,
+  registerProvisioningRoutes,
+} from "./organizations/routes.js";
+import type { OrganizationRepository } from "@zentwine/domain";
 import { registerApprovalRoutes } from "./approvals/routes.js";
 import type { ApprovalRepository } from "@zentwine/policy";
 import {
@@ -36,6 +41,7 @@ import {
   type IdentityRoutesOptions,
 } from "./identity/routes.js";
 export interface AppOptions {
+  organizations?: OrganizationRepository;
   identity?: IdentityRoutesOptions;
   policy?: PolicyRepository;
   agents?: AgentRepository;
@@ -174,6 +180,22 @@ export function buildApp(options: AppOptions = {}) {
       ],
     }),
   );
+  app.get("/api/v1/system/organization-capabilities", async () => ({
+    schema_version: "1.0.0",
+    enabled: !!options.organizations,
+    sso_verifier_connected: false,
+    scope: "local-development",
+  }));
+  if (options.organizations) {
+    if (!options.identity || !options.policy || !options.approvals)
+      throw new AppError("invalid_input");
+    const o = {
+      repository: options.organizations,
+      origins: options.identity.origins,
+    };
+    app.register(registerOrganizationRoutes, o);
+    app.register(registerProvisioningRoutes, o);
+  }
   if (options.identity) app.register(registerIdentityRoutes, options.identity);
   if (options.policy) {
     if (!options.identity) throw new AppError("invalid_input");
