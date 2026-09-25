@@ -46,7 +46,7 @@
       },
       "verify": {
         "path": "packages/db/migrations/0003-agent-delegations.verify.sql",
-        "sha256": "afeeb98743510b825f8f1b7e1e1ba238e3e68150cf14face4ecdc7455a9eb4c9"
+        "sha256": "74b24deb2972838d0e7eb34492f024ca169d35aaa1894f9984820b3fa9bcec9b"
       }
     }
   ]
