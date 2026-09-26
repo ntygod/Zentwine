@@ -176,6 +176,9 @@ export class PostgresTenantRepository implements TenantRepository {
       NOT has_database_privilege(current_user,current_database(),'CREATE,TEMP') AS no_database_ddl,
       NOT has_schema_privilege(current_user,'zentwine_tenant','CREATE') AS no_schema_ddl,
       NOT has_schema_privilege(current_user,'zentwine_tenant_private','USAGE,CREATE') AS no_private_access,
+      NOT has_schema_privilege(current_user,'zentwine_identity','USAGE,CREATE') AS no_identity_schema,
+      NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zentwine_identity' AND c.relname IN ('sessions','login_tickets') AND has_any_column_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,REFERENCES')) AS no_credential_columns,
+      NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zentwine_tenant' AND c.relkind='r' AND has_table_privilege(current_user,c.oid,'UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')) AS no_mutating_privileges,
       NOT has_table_privilege(current_user,(SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zentwine_identity' AND c.relname='sessions'),'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS no_sessions,
       NOT has_table_privilege(current_user,(SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zentwine_identity' AND c.relname='login_tickets'),'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS no_tickets,
       (SELECT count(*)=2 AND bool_and(c.relrowsecurity AND c.relforcerowsecurity) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zentwine_tenant' AND c.relname IN ('object_keys','object_links') AND c.relkind='r') AS forced_rls

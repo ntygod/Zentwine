@@ -7,7 +7,12 @@ try {
   parseTestDatabaseEnvironment(env);
   const result = spawnSync(
     process.execPath,
-    ["--test", "--test-timeout=60000", "tests/tenant/rls.test.mjs"],
+    [
+      "--test",
+      "--test-timeout=60000",
+      "tests/tenant/rls.test.mjs",
+      "tests/tenant/privilege-drift.test.mjs",
+    ],
     { env, stdio: "inherit", timeout: 300000, killSignal: "SIGKILL" },
   );
   process.exitCode = result.status ?? 1;
