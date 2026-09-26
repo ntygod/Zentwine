@@ -1,3 +1,7 @@
+import type {
+  ApprovalInboxQuery,
+  ApprovalInboxPage,
+} from "./approval-inbox.js";
 import { isIdentityId, isContextVersion } from "@zentwine/domain";
 import type {
   PolicyScope,
@@ -213,6 +217,10 @@ export function validApprovalCursor(v: unknown): v is string {
 }
 /** These ports require trusted server-bound human scope. They do not mint Agent delegations. */
 export interface ApprovalRepository {
+  list(
+    scope: PolicyScope,
+    input: ApprovalInboxQuery,
+  ): Promise<ApprovalInboxPage>;
   request(scope: PolicyScope, input: ApprovalInput): Promise<ApprovalView>;
   inspect(scope: PolicyScope, id: string): Promise<ApprovalView>;
   decide(
