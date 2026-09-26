@@ -55,7 +55,7 @@ export function ObjectPageFrame({
     </article>
   );
 }
-/** Native modal owns focus containment; no automatic command on open, close or Escape. */
+/** Native modal makes the background inert; explicit boundary cycling retains Tab focus. */
 export function DecisionDrawer({
   title,
   trigger,
@@ -90,6 +90,34 @@ export function DecisionDrawer({
           ref={dialog}
           className="zt-decision-drawer"
           aria-label={title}
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key !== "Tab" || e.nativeEvent.isComposing) return;
+            const element = e.currentTarget;
+            const controls = Array.from(
+              element.querySelectorAll<HTMLElement>(
+                "button, [href], input, select, textarea, [tabindex]",
+              ),
+            ).filter(
+              (control) =>
+                control.tabIndex >= 0 &&
+                !control.matches(":disabled") &&
+                !control.closest("[inert]") &&
+                control.getClientRects().length > 0,
+            );
+            const first = controls[0],
+              last = controls.at(-1);
+            if (!first || !last) {
+              e.preventDefault();
+              element.focus();
+            } else if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          }}
           onCancel={(e) => {
             e.preventDefault();
             setOpen(false);

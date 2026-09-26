@@ -342,7 +342,17 @@ test("object browser PG: three themes mobile zoom and forced colors keep records
       await open(f, page, base);
       calls.length = 0;
       for (const theme of ["dark", "contrast"]) {
-        await page.getByLabel("外观", { exact: true }).selectOption(theme);
+        await page.getByRole("combobox", { name: "外观" }).selectOption(theme);
+        await expect(page.locator("[data-zt-theme]")).toHaveAttribute(
+          "data-zt-theme",
+          theme,
+        );
+        assert.equal(
+          await formal(page).evaluate(
+            (element) => getComputedStyle(element).backgroundColor,
+          ),
+          theme === "dark" ? "rgb(25, 30, 43)" : "rgb(0, 0, 0)",
+        );
         await expect(formal(page)).toBeVisible();
         await page.screenshot({
           path: `reports/object-ui/resource-${theme}.png`,
