@@ -5,10 +5,11 @@ import type { WorkbenchView } from "@zentwine/contracts";
 export function useOrganizationWorkbench(
   org: string | null,
   view: WorkbenchView,
+  objectId?: string,
 ) {
   const controller = useMemo(
-    () => new WorkbenchController(org, view),
-    [org, view],
+    () => new WorkbenchController(org, view, undefined, objectId),
+    [org, view, objectId],
   );
   const state = useSyncExternalStore(
     controller.subscribe,

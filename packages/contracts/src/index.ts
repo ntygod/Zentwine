@@ -161,3 +161,5 @@ export * from "./emergency.js";
 export * from "./organization-audit.js";
 
 export * from "./workbench.js";
+
+export * from "./object-page.js";

@@ -1,4 +1,7 @@
 import {
+  resourceObjectPath,
+  parseResourceObjectSnapshot,
+  type ResourceObjectSnapshot,
   parseWorkbenchSession,
   parseWorkbenchMember,
   parseWorkbenchSettings,
@@ -22,6 +25,7 @@ export type WorkbenchState =
       member: WorkbenchMember;
       resources: WorkbenchCatalogItem[];
       settings: WorkbenchSettings | null;
+      object?: ResourceObjectSnapshot;
     };
 class Failure extends Error {
   constructor(readonly code: string) {
@@ -47,9 +51,15 @@ export class WorkbenchController {
     private readonly org: string | null,
     private readonly view: WorkbenchView,
     private readonly fetcher: typeof fetch = globalThis.fetch.bind(globalThis),
+    private readonly objectId?: string,
   ) {
     if (org !== null) organizationWorkbenchPath(org, view);
     else if (view !== "overview") throw new TypeError("Invalid entry route");
+    if (objectId !== undefined) {
+      if (org === null || view !== "overview")
+        throw new TypeError("Invalid object route");
+      resourceObjectPath(org, objectId);
+    }
   }
   getSnapshot = (): WorkbenchState => this.#state;
   subscribe = (fn: () => void): (() => void) => {
@@ -210,6 +220,20 @@ export class WorkbenchController {
               this.org,
             )
           : null;
+      if (epoch !== this.#epoch) return;
+      const resource =
+        this.objectId === undefined
+          ? undefined
+          : parseResourceObjectSnapshot(
+              await this.json(
+                base + "/resources/" + this.objectId,
+                signal,
+                auth,
+              ),
+              this.org,
+              this.objectId,
+              member,
+            );
       if (epoch === this.#epoch)
         this.publish({
           status: "ready",
@@ -218,6 +242,7 @@ export class WorkbenchController {
           member,
           resources,
           settings,
+          ...(resource === undefined ? {} : { object: resource }),
         });
     } catch (e) {
       this.failed(e, epoch);
@@ -229,7 +254,10 @@ export class WorkbenchController {
       return null;
     const { epoch, signal } = this.begin();
     try {
-      const path = organizationWorkbenchPath(org);
+      const path =
+        this.objectId && org === this.org
+          ? resourceObjectPath(org, this.objectId)
+          : organizationWorkbenchPath(org);
       if (!previous.auth.session.organizations.some((o) => o.id === org))
         throw new Failure("unavailable_resource");
       // Explicit command only. Unknown outcome is not automatically retried.

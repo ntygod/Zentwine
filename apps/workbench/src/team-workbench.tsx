@@ -1,6 +1,8 @@
+import { ResourceObjectContent } from "./resource-object.js";
 import { useState } from "react";
 import { Brand, ThemeSelect, useOrganizationWorkbench } from "@zentwine/ui";
 import {
+  resourceObjectPath,
   WORKBENCH_PATH,
   ORGANIZATIONS_PATH,
   organizationWorkbenchPath,
@@ -101,12 +103,14 @@ function ResourceSearch({ onSearch }: { onSearch: (query: string) => void }) {
 export function TeamWorkbench({
   org,
   view,
+  objectId,
 }: {
   org: string | null;
   view: WorkbenchView;
+  objectId?: string;
 }) {
   const { state, reload, switchOrganization, logout } =
-    useOrganizationWorkbench(org, view);
+    useOrganizationWorkbench(org, view, objectId);
   const enter = (id: string) => {
     void switchOrganization(id).then((path) => {
       if (path) window.location.assign(path);
@@ -130,7 +134,13 @@ export function TeamWorkbench({
         aria-busy={state.status === "loading"}
       >
         <div className="eyebrow">TEAM · VERIFIED CONTEXT</div>
-        <h1>{state.status === "ready" ? labels[view] : "组织工作台"}</h1>
+        <h1>
+          {state.status === "ready"
+            ? objectId
+              ? "资源详情"
+              : labels[view]
+            : "组织工作台"}
+        </h1>
         <p>页面和链接只读；切换组织须明确确认，不会创建工作区或启动 Run。</p>
         {state.status === "loading" && (
           <p role="status">正在重新核验组织与权限，旧内容已清空…</p>
@@ -163,7 +173,10 @@ export function TeamWorkbench({
           <section className="team-error" role="alert">
             <h2>无法打开当前页面</h2>
             <p>
-              {errors[state.code] ?? "服务暂时不可用，未显示原始错误内容。"}
+              {objectId && state.code === "unavailable_resource"
+                ? "资源不存在或当前无权读取，未显示受保护内容。"
+                : (errors[state.code] ??
+                  "服务暂时不可用，未显示原始错误内容。")}
             </p>
             <button onClick={() => void reload()}>重新核验</button>
             <a href={ORGANIZATIONS_PATH}>重新选择组织</a>
@@ -197,7 +210,7 @@ export function TeamWorkbench({
                 <a
                   key={v}
                   href={organizationWorkbenchPath(state.org, v)}
-                  aria-current={v === view ? "page" : undefined}
+                  aria-current={!objectId && v === view ? "page" : undefined}
                 >
                   {labels[v]}
                 </a>
@@ -206,7 +219,13 @@ export function TeamWorkbench({
             <p className="team-snapshot">
               按次核验的快照，非实时推送。切页、搜索、回到窗口或恢复网络时重新读取；已返回的数据不能远程收回。
             </p>
-            {view === "overview" && (
+            {objectId && state.object && (
+              <ResourceObjectContent
+                snapshot={state.object}
+                member={state.member}
+              />
+            )}
+            {view === "overview" && !objectId && (
               <section className="card team-card">
                 <h2>
                   {auth?.session.organizations.find((o) => o.id === state.org)
@@ -243,7 +262,9 @@ export function TeamWorkbench({
                   <ul className="team-resources" aria-label="可访问资源列表">
                     {state.resources.map((r) => (
                       <li key={r.id}>
-                        <strong>{r.display_name}</strong>
+                        <a href={resourceObjectPath(state.org, r.id)}>
+                          {r.display_name}
+                        </a>
                         <small>
                           {r.kind} · {r.id}
                         </small>

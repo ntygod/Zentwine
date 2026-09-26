@@ -1,5 +1,6 @@
 import { TeamWorkbench } from "./team-workbench.js";
 import {
+  parseResourceObjectPath,
   ORGANIZATIONS_PATH,
   parseOrganizationWorkbenchPath,
 } from "@zentwine/contracts";
@@ -238,13 +239,20 @@ function Workbench() {
   );
 }
 const teamRoute = parseOrganizationWorkbenchPath(window.location.pathname);
+const objectRoute = parseResourceObjectPath(window.location.pathname);
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing app root");
 createRoot(root).render(
   <StrictMode>
     <ThemeProvider>
       <AppBoundary>
-        {teamRoute ? (
+        {objectRoute ? (
+          <TeamWorkbench
+            org={objectRoute.org}
+            view="overview"
+            objectId={objectRoute.id}
+          />
+        ) : teamRoute ? (
           <TeamWorkbench {...teamRoute} />
         ) : window.location.pathname === WORKBENCH_PATH + "/design-system" ? (
           <DesignSystemPage />

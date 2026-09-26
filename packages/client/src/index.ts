@@ -66,3 +66,5 @@ export function createClient(options: ClientOptions = {}) {
 }
 
 export * from "./workbench.js";
+
+export * from "./object-layout.js";
