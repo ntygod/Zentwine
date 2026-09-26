@@ -2,7 +2,7 @@
 
 状态：InProgress；Issue #40。前置ZT04-02已合并，基线main `2fa34f1480c14e90c21497b79a462bc67e44f94e`。
 
-A：真实授权目录对象页、通用分区框架、读取判定抽屉与显式布局偏好。本轮候选需要完整目标CI验收，不以本地测试代替。详见[开发指南](../development/resource-object-page.md)、[ADR-022](../adr/ADR-022-authorized-object-page.md)、[验收报告](../testing/zt04-03-a-report.md)。
+A：真实授权目录对象页、通用分区框架、读取判定抽屉与显式布局偏好。代码head `8811add044e7385781666815ee27abf4d2564c44`、tree `3be610b94bf5bf371092cffd665e9df05d827262` 已通过完整CI `36242477896`；最终文档提交须独立复验，精确最终结果和合并见PR #41。432主工程、21普通浏览器、21组织PG浏览器（原12＋新9）及原回归通过，五份制品127条目和三份431文件源码已核验。首轮原生dialog焦点循环缺陷和新主题定位失败已修复，失败历史保留。详见[开发指南](../development/resource-object-page.md)、[ADR-022](../adr/ADR-022-authorized-object-page.md)、[验收报告](../testing/zt04-03-a-report.md)。
 
 B未交付：真实内容版本/摘要/证据/活动与持久决策。批准动作显示并绑定revision/hash、范围和责任人，经过服务端最新权限/CAS与过期撤销检查；协作对话不能成为正式批准。A只读取目录元数据，其判定不是内容批准；整个工作包不因A合并Done。
 
