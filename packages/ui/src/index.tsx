@@ -100,3 +100,5 @@ export class AppBoundary extends Component<
 export * from "./tokens.js";
 export * from "./theme.js";
 export * from "./primitives.js";
+
+export * from "./workbench.js";
