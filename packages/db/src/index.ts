@@ -8,3 +8,6 @@ export * from "./approvals.js";
 
 export * from "./organizations.js";
 export * from "./organization-grants.js";
+
+export * from "./tenant.js";
+export * from "./tenant-grants.js";

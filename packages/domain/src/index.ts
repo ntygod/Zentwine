@@ -35,3 +35,5 @@ export * from "./organizations.js";
 export * from "./emergency.js";
 
 export * from "./organization-audit.js";
+
+export * from "./tenant.js";

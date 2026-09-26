@@ -112,6 +112,22 @@
         "path": "packages/db/migrations/0007-emergency-containment.verify.sql",
         "sha256": "9d55ff08471184d87e4f7ad08b0e16ab4b3344fe89a12a9d2cd2105ac49d2faa"
       }
+    },
+    {
+      "id": "0008-tenant-repository",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0008-tenant-repository.up.sql",
+        "sha256": "043df3eaaba102ca6b6d4caef6b04ba20c3dde6175d922b7f7d8d904f5d745f3"
+      },
+      "down": {
+        "path": "packages/db/migrations/0008-tenant-repository.down.sql",
+        "sha256": "b37cbf608080ce872fb994cce94c0d9cff36244d73b27d0c856a6a36440d6a31"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0008-tenant-repository.verify.sql",
+        "sha256": "58075483685377f146dd94f2a349ae978354f797352ff343706c1e9792e44541"
+      }
     }
   ]
 }

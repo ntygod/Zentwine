@@ -64,7 +64,10 @@
     "test:audit-ui": "node scripts/run-audit-tests.mjs --browser",
     "test:emergency": "node --test tests/emergency.test.mjs",
     "test:emergency-integration": "node scripts/run-emergency-tests.mjs",
-    "test:emergency-ui": "node scripts/run-emergency-tests.mjs --browser"
+    "test:emergency-ui": "node scripts/run-emergency-tests.mjs --browser",
+    "test:tenant": "node --test tests/tenant.test.mjs",
+    "test:tenant-integration": "node scripts/run-tenant-tests.mjs",
+    "tenant:admin": "node scripts/tenant-admin.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",
