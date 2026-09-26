@@ -46,6 +46,7 @@ function OrganizationPicker({
       <label>
         切换到组织
         <select
+          aria-label="切换到组织"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
           required
