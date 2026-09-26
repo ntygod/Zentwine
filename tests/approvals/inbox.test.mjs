@@ -470,9 +470,37 @@ test("inbox HTTP: read permission failure returns no rows or database details an
       await app.close();
     }
   }));
-test("inbox PG wait: final authorization refuses a session that expires during query lock wait", () =>
+test("inbox PG wait: row authorization refuses a session that expires during query lock wait", () =>
   fixture(async (f) => {
     await f.propose();
+    await query(
+      f.adminPool,
+      "UPDATE zentwine_identity.sessions SET idle_expires_at=clock_timestamp()+interval '1 second' WHERE digest=$1",
+      [f.owner.scope.session_digest],
+    );
+    const blocker = await f.adminPool.connect();
+    let work;
+    try {
+      await blocker.query("BEGIN");
+      await blocker.query(
+        "LOCK TABLE zentwine_approvals.requests IN ACCESS EXCLUSIVE MODE",
+      );
+      work = f.approvals.list(f.owner.scope, {});
+      // The per-resource check rejects this populated page before the final session check.
+      const checked = assert.rejects(work, fails("unavailable_resource"));
+      await waitForLock(f.adminPool, "SELECT r.*,e.sequence");
+      await new Promise((r) => setTimeout(r, 1100));
+      await blocker.query("COMMIT");
+      await checked;
+    } finally {
+      await blocker.query("ROLLBACK");
+      blocker.release();
+      await Promise.allSettled([work].filter(Boolean));
+    }
+  }));
+test("inbox PG wait: empty discovery still rechecks the expired session before commit", () =>
+  fixture(async (f) => {
+    assert.deepEqual((await f.approvals.list(f.owner.scope, {})).entries, []);
     await query(
       f.adminPool,
       "UPDATE zentwine_identity.sessions SET idle_expires_at=clock_timestamp()+interval '1 second' WHERE digest=$1",
@@ -489,8 +517,19 @@ test("inbox PG wait: final authorization refuses a session that expires during q
       const checked = assert.rejects(work, fails("authentication_required"));
       await waitForLock(f.adminPool, "SELECT r.*,e.sequence");
       await new Promise((r) => setTimeout(r, 1100));
+      const expired = (
+        await query(
+          f.adminPool,
+          "SELECT idle_expires_at<=clock_timestamp() AS expired FROM zentwine_identity.sessions WHERE digest=$1",
+          [f.owner.scope.session_digest],
+        )
+      ).rows[0];
+      assert.equal(expired.expired, true);
       await blocker.query("COMMIT");
       await checked;
+      assert.equal(await count(f, "events"), 0);
+      const fresh = await f.auth(f.alice);
+      assert.deepEqual((await f.approvals.list(fresh.scope, {})).entries, []);
     } finally {
       await blocker.query("ROLLBACK");
       blocker.release();
