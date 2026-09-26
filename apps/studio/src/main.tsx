@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AppBoundary,
+  ThemeProvider,
+  ThemeSelect,
   Brand,
   ConnectionAlert,
   ConnectionBadge,
@@ -22,6 +24,7 @@ function Studio() {
       <header className="studio-topbar">
         <Brand studio />
         <div className="studio-controls">
+          <ThemeSelect />
           <ConnectionBadge connection={connection} />
           <a href={`http://127.0.0.1:5173${WORKBENCH_PATH}`}>
             返回管理工作台 ↗
@@ -134,8 +137,10 @@ const root = document.getElementById("root");
 if (!root) throw new Error("Missing app root");
 createRoot(root).render(
   <StrictMode>
-    <AppBoundary>
-      <Studio />
-    </AppBoundary>
+    <ThemeProvider>
+      <AppBoundary>
+        <Studio />
+      </AppBoundary>
+    </ThemeProvider>
   </StrictMode>,
 );
