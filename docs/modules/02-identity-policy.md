@@ -1,6 +1,6 @@
 # ZT02｜身份、组织与授权内核
 
-状态：InProgress。ZT02-01实施见[状态](../tasks/status.md)，ZT02-02已具备限定实现验收，最终精确核验与合并见PR #18，ZT02-03已具备限定实现验收，最终提交与合并见PR #20，ZT02-04审批及一次性许可已通过限定验收，最终文档提交复验与合并见PR #22，ZT02-05已通过限定验收并合并PR #24；ZT02-06按[执行记录](../tasks/ZT02-06-execution.md)分增量推进，本轮A为权限矩阵与回归入口，审计视图和应急撤权流程尚未完成。负责人职责：后端、安全、前端。依赖模块：ZT01。对应蓝图：02、13、19。
+状态：InProgress（完整产品与通道验收未完成）。ZT02-01至ZT02-05限定实现验收见[实施状态](../tasks/status.md)；ZT02-06的A权限矩阵、B只读审计、C应急控制已分别合并PR #26/#27/#28，B文档在本次文档PR补齐并须完整复验。[执行记录](../tasks/ZT02-06-execution.md)区分已交付范围与[尚未实现的文件/预览/导出验收](../tasks/zt02-06-acceptance-followup.md)。负责人职责：后端、安全、前端。依赖模块：ZT01。对应蓝图：02、13、19。
 
 ## 目标
 
@@ -30,3 +30,9 @@ Organization、Team、Membership、HumanIdentity、AgentIdentity(accountable_own
 ## 完成与观察
 
 记录拒绝原因、策略版本与撤权传播延迟，不记录秘密。灰度先影子评估而不扩大权限，再对受控组织启用；异常回到更保守策略。所有场景通过真实资源边界测试，不以菜单截图代替。
+
+## 已实现接口与原目标的区分
+
+上表保留完整目标，不能将拟建路径视为已发布接口。当前组织审计实际为 `GET /api/v1/orgs/:orgId/audit-events`，应急控制实际为 `GET/POST /api/v1/orgs/:orgId/members/:memberId/emergency-access`；分别见[审计指南](../development/organization-audit.md)及[应急指南](../development/emergency-containment.md)。
+
+当前审计是十一类组织事实投影，不覆盖登录失败、完整资源/Agent/审批轨迹及通用对象历史；文件/预览/导出实际业务仍不存在，ZT02-06严格矩阵退出2。已有模块支撑代码和文档交付不改变这些验收边界。下一独立工作包ZT03-01按其明确前置ZT02-01推进，本模块不能为满足依赖而虚标完整Done。
