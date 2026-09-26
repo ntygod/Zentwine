@@ -61,7 +61,10 @@
     "access-matrix:check": "node scripts/run-access-matrix.mjs --check",
     "test:audit": "node --test tests/organization-audit.test.mjs",
     "test:audit-integration": "node scripts/run-audit-tests.mjs",
-    "test:audit-ui": "node scripts/run-audit-tests.mjs --browser"
+    "test:audit-ui": "node scripts/run-audit-tests.mjs --browser",
+    "test:emergency": "node --test tests/emergency.test.mjs",
+    "test:emergency-integration": "node scripts/run-emergency-tests.mjs",
+    "test:emergency-ui": "node scripts/run-emergency-tests.mjs --browser"
   },
   "devDependencies": {
     "typescript": "6.0.2",
