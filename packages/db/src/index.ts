@@ -11,3 +11,6 @@ export * from "./organization-grants.js";
 
 export * from "./tenant.js";
 export * from "./tenant-grants.js";
+
+export { digestContent, verifyContentDigest } from "./versions.js";
+export * from "./version-grants.js";

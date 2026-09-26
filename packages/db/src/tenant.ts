@@ -1,3 +1,4 @@
+import { PostgresRevisionUnit } from "./versions.js";
 import {
   TenantError,
   validateTenantScope,
@@ -50,13 +51,19 @@ const key = (r: Record<string, unknown>, org: string): TenantKey =>
 
 /** Only fixed, parameterized domain operations escape this module. A unit of work cannot outlive its transaction. */
 class Unit implements TenantUnitOfWork {
+  readonly versions: PostgresRevisionUnit;
   #open = true;
   #pending = new Set<Promise<unknown>>();
   #failed: TenantError | undefined;
   constructor(
     private readonly connection: SqlConnection,
     private readonly org: string,
-  ) {}
+  ) {
+    this.versions = new PostgresRevisionUnit(
+      (work) => this.operation(() => work(connection)),
+      org,
+    );
+  }
   close() {
     this.#open = false;
   }
