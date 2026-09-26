@@ -47,7 +47,7 @@
   margin-top: 12px;
   color: var(--zt-muted);
 }
-.inbox-facts {
+.team-card .inbox-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
@@ -61,7 +61,7 @@
   margin: 6px 0 0;
 }
 @media (max-width: 700px) {
-  .inbox-facts {
+  .team-card .inbox-facts {
     grid-template-columns: 1fr;
   }
   .inbox-filters {

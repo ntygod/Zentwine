@@ -367,6 +367,14 @@ test("inbox browser PG: keyboard filters and three themes remain usable at narro
       }
       for (const width of [390, 320]) {
         await page.setViewportSize({ width, height: 844 });
+        const columns = await page
+          .locator(".inbox-facts")
+          .evaluate(
+            (el) =>
+              getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/)
+                .length,
+          );
+        assert.equal(columns, 1, "Narrow facts must use one full-width column");
         assert.ok(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -400,12 +408,38 @@ test("inbox browser PG: recorded request never renders decision detail under the
       await expect(
         page.getByRole("form", { name: "新目录改名申请" }),
       ).toBeVisible();
-      let release, reached;
+      let release, reached, capture;
       const waiting = new Promise((resolve) => {
         release = resolve;
       });
       const started = new Promise((resolve) => {
         reached = resolve;
+      });
+      const observed = new Promise((resolve) => {
+        capture = resolve;
+      });
+      // Observe the old document before navigation: evaluating after a pending navigation can await the new document.
+      await page.exposeFunction("captureCatalogTransition", capture);
+      await page.evaluate(() => {
+        const observer = new MutationObserver(() => {
+          const detailed =
+            document.querySelector('[aria-label="精确审批范围"]') !== null;
+          const recorded =
+            document.body.textContent.includes("申请已记录，正在打开详情");
+          if (!detailed && !recorded) return;
+          observer.disconnect();
+          void window.captureCatalogTransition({
+            detailed,
+            decision:
+              document.querySelector("#approval-decision-title") !== null,
+            recorded,
+            pathname: window.location.pathname,
+            target: [...document.querySelectorAll("a")]
+              .find((a) => a.textContent.trim() === "前往已记录的审批")
+              ?.getAttribute("href"),
+          });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
       });
       holdDetail(async (id) => {
         reached(id);
@@ -421,24 +455,24 @@ test("inbox browser PG: recorded request never renders decision detail under the
         .getByRole("button", { name: "提交目录改名申请", exact: true })
         .click();
       clicking.catch(() => {});
-      let approval;
+      let approval, timer;
       try {
-        approval = await started;
+        const timeout = new Promise((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Navigation observation did not complete")),
+            5000,
+          );
+        });
+        const [id, displayed] = await Promise.race([
+          Promise.all([started, observed]),
+          timeout,
+        ]);
+        approval = id;
         assert.notEqual(approval, "rename");
         assert.equal(
-          new URL(page.url()).pathname,
+          displayed.pathname,
           catalogApprovalPath(f.orgA, "request", f.a.id),
         );
-        const displayed = await page.evaluate(() => ({
-          detailed:
-            document.querySelector('[aria-label="精确审批范围"]') !== null,
-          decision: document.querySelector("#approval-decision-title") !== null,
-          recorded:
-            document.body.textContent.includes("申请已记录，正在打开详情"),
-          target: [...document.querySelectorAll("a")]
-            .find((a) => a.textContent.trim() === "前往已记录的审批")
-            ?.getAttribute("href"),
-        }));
         assert.equal(displayed.detailed, false);
         assert.equal(displayed.decision, false);
         assert.equal(displayed.recorded, true);
@@ -447,6 +481,7 @@ test("inbox browser PG: recorded request never renders decision detail under the
           catalogApprovalPath(f.orgA, "inspect", approval),
         );
       } finally {
+        clearTimeout(timer);
         release();
         holdDetail(null);
         await clicking;
