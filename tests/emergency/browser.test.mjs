@@ -117,10 +117,15 @@ test("emergency browser PG: owner explicitly contains and releases another membe
         .getByLabel("审计事件类型")
         .selectOption("member.emergency_held");
       await audit.getByRole("button", { name: "刷新审计记录" }).click();
-      await expect(audit.getByRole("listitem")).toHaveCount(1);
+      const entry = audit.getByRole("listitem");
+      await expect(entry).toHaveCount(1);
       await expect(
-        audit.getByText("成员已应急阻断", { exact: true }),
+        entry.getByText("成员已应急阻断", { exact: true }),
       ).toBeVisible();
+      await expect(
+        entry.getByText(f.bobMember.id, { exact: true }),
+      ).toBeVisible();
+      await expect(entry.getByText(f.alice, { exact: true })).toBeVisible();
     }),
   ));
 test("emergency browser PG: stale organization tab cannot execute and viewer has no control", () =>
