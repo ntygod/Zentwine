@@ -13,6 +13,7 @@ try {
           "tests/organizations/browser.test.mjs",
           "tests/organizations/theme-browser.test.mjs",
           "tests/organizations/navigation-browser.test.mjs",
+          "tests/organizations/object-browser.test.mjs",
         ]
       : [
           "tests/organizations/lifecycle.test.mjs",

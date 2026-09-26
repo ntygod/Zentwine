@@ -1,0 +1,140 @@
+.zt-object {
+  min-width: 0;
+}
+.zt-object-header {
+  padding: 24px 0;
+}
+.zt-object-header h2 {
+  font-size: 28px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.zt-object-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+}
+.zt-object-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zt-object-controls select {
+  font: inherit;
+  padding: 8px;
+  background: var(--zt-surface);
+  color: var(--zt-text);
+  border: 1px solid var(--zt-border);
+  border-radius: 8px;
+}
+.zt-object-controls p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.zt-object-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.zt-object-columns[data-inspector="hidden"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.zt-object-primary {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.zt-object-section {
+  padding: 24px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.zt-object-section h3 {
+  margin: 0 0 12px;
+}
+.zt-object-section section + section {
+  border-top: 1px solid var(--zt-border);
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.zt-object-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.zt-object-facts dt {
+  font-size: 12px;
+  color: var(--zt-muted);
+  margin-top: 8px;
+}
+.zt-object-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.zt-object[data-density="compact"] .zt-object-section {
+  padding: 16px;
+}
+.zt-object[data-density="compact"] .zt-object-primary {
+  gap: 12px;
+}
+.zt-decision-drawer {
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 0 0 auto;
+  padding: 24px;
+  background: var(--zt-surface);
+  color: var(--zt-text);
+  border: 1px solid var(--zt-border);
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.zt-decision-drawer::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+.zt-decision-drawer header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+}
+.zt-decision-drawer h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.zt-object :focus-visible,
+.zt-decision-drawer :focus-visible {
+  outline: 3px solid var(--zt-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 820px) {
+  .zt-object-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zt-object-section {
+    padding: 18px;
+  }
+  .zt-decision-drawer {
+    padding: 18px;
+  }
+}
+@media (forced-colors: active) {
+  .zt-decision-drawer {
+    border-color: CanvasText;
+  }
+  .zt-decision-drawer::backdrop {
+    background: Canvas;
+    opacity: 0.8;
+  }
+}
+
+.zt-object-section p + p,
+.zt-decision-drawer p + p {
+  margin-top: 12px;
+}
