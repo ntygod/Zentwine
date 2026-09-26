@@ -1,0 +1,86 @@
+[
+  {
+    "name": "null",
+    "schema_id": "test.document",
+    "input": null,
+    "canonical": "null",
+    "content_bytes": 4,
+    "content_hash": "4bb4acbe73f1c78a5fdaabca48e8b8ba73331ff5c9c9b341843bce76f22f10dd"
+  },
+  {
+    "name": "zero",
+    "schema_id": "test.document",
+    "input": 0,
+    "canonical": "0",
+    "content_bytes": 1,
+    "content_hash": "51f4ae422df9ac02e991a4d07b0f36f2f75a9c49e57c428fca079b66ccc77073"
+  },
+  {
+    "name": "unicode-document",
+    "schema_id": "test.document",
+    "input": {
+      "b": 2,
+      "a": "中"
+    },
+    "canonical": "{\"a\":\"中\",\"b\":2}",
+    "content_bytes": 17,
+    "content_hash": "29a905907208db1fb84d5606c5e38420722c51812eabcf9e2e9fb52500a67cae"
+  },
+  {
+    "name": "nested-escapes",
+    "schema_id": "test.document",
+    "input": {
+      "z": [true, false, null, "\n\t\"\\/"],
+      "a": {
+        "x": 1
+      }
+    },
+    "canonical": "{\"a\":{\"x\":1},\"z\":[true,false,null,\"\\n\\t\\\"\\\\/\"]}",
+    "content_bytes": 47,
+    "content_hash": "457df139d3ebb57492ab3afff8735d90f536ed176d7deb95ea9282b42f3dc20b"
+  },
+  {
+    "name": "safe-integer-boundaries",
+    "schema_id": "test.document",
+    "input": [-9007199254740991, 9007199254740991],
+    "canonical": "[-9007199254740991,9007199254740991]",
+    "content_bytes": 36,
+    "content_hash": "c798171c8cc9f7dcbaa83f722d7a67ac9c76fd82255185ec137ec3bfbbfe7174"
+  },
+  {
+    "name": "numeric-key-order",
+    "schema_id": "test.document",
+    "input": {
+      "2": "two",
+      "10": "ten",
+      "a": "A"
+    },
+    "canonical": "{\"10\":\"ten\",\"2\":\"two\",\"a\":\"A\"}",
+    "content_bytes": 30,
+    "content_hash": "9d5cae817a1189ba7d68304db878b5058d80c99a92bb052999ee9bafd40c6e06"
+  },
+  {
+    "name": "utf16-key-order",
+    "schema_id": "test.document",
+    "input": {
+      "": 2,
+      "🧠": 1
+    },
+    "canonical": "{\"🧠\":1,\"\":2}",
+    "content_bytes": 18,
+    "content_hash": "b7765830227a05da8bdb3e4501047aaf0b6a1567e9d9d62e4ae64e9a954ad073"
+  },
+  {
+    "name": "reserved-key-data",
+    "schema_id": "test.document",
+    "input": {
+      "__proto__": {
+        "ok": true
+      },
+      "constructor": "data"
+    },
+    "canonical": "{\"__proto__\":{\"ok\":true},\"constructor\":\"data\"}",
+    "content_bytes": 46,
+    "content_hash": "7e48ee277f429f9c43e3c6f07becf02aa0413b91b8f71668e47bf43c84c3d1bd"
+  }
+]

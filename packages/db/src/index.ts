@@ -11,3 +11,5 @@ export * from "./organization-grants.js";
 
 export * from "./tenant.js";
 export * from "./tenant-grants.js";
+
+export * from "./content-digest.js";
