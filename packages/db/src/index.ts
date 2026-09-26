@@ -13,3 +13,6 @@ export * from "./tenant.js";
 export * from "./tenant-grants.js";
 
 export * from "./content-digest.js";
+
+export { PostgresRevisionUnit } from "./versions.js";
+export * from "./version-grants.js";

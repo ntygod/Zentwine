@@ -67,7 +67,10 @@
     "test:emergency-ui": "node scripts/run-emergency-tests.mjs --browser",
     "test:tenant": "node --test tests/tenant.test.mjs",
     "test:tenant-integration": "node scripts/run-tenant-tests.mjs",
-    "tenant:admin": "node scripts/tenant-admin.mjs"
+    "tenant:admin": "node scripts/tenant-admin.mjs",
+    "test:versions": "node --test tests/versions.test.mjs",
+    "test:versions-integration": "node scripts/run-version-tests.mjs",
+    "versions:admin": "node scripts/version-admin.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.2",

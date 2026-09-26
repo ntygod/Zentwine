@@ -128,6 +128,22 @@
         "path": "packages/db/migrations/0008-tenant-repository.verify.sql",
         "sha256": "58075483685377f146dd94f2a349ae978354f797352ff343706c1e9792e44541"
       }
+    },
+    {
+      "id": "0009-version-cas",
+      "transactional": true,
+      "up": {
+        "path": "packages/db/migrations/0009-version-cas.up.sql",
+        "sha256": "9b79d8258d1723d13533bed64629a9b5312dcc9c1b62c12788e2b7a3b8476ef5"
+      },
+      "down": {
+        "path": "packages/db/migrations/0009-version-cas.down.sql",
+        "sha256": "5ffa8593334388069854358c3752ef61a9d1ced2139372bfc89a22339d55ad54"
+      },
+      "verify": {
+        "path": "packages/db/migrations/0009-version-cas.verify.sql",
+        "sha256": "adecccd1ce1ad3df46b2fea801562e6f64ed6246025c581eb146dec578edaad5"
+      }
     }
   ]
 }

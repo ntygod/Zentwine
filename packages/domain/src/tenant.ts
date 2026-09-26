@@ -1,3 +1,4 @@
+import type { RevisionUnitOfWork } from "./versions.js";
 import { isIdentityId, isContextVersion } from "./identity.js";
 /** Internal server port; a session digest is a credential, not a public tenant selector. */
 export interface TenantScope {
@@ -35,6 +36,7 @@ export interface TenantLink {
 }
 /** Registration metadata only, not arbitrary JSON, business content, revisions or authorization grants. */
 export interface TenantUnitOfWork {
+  readonly versions: RevisionUnitOfWork;
   register(id: string, kind: string): Promise<TenantKey>;
   getMany(ids: readonly string[]): Promise<readonly TenantKey[]>;
   link(source: string, target: string, kind: string): Promise<TenantLink>;
