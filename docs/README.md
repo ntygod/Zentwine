@@ -59,3 +59,11 @@
 [任务索引](tasks/README.md)｜[端到端场景](tests/end-to-end.md)｜[ADR 决策记录](adr/README.md)｜[任务模板](templates/work-item.md)｜[PR 模板](templates/pull-request.md)。
 
 示例契约位于 `contracts/`，是 Zentwine 自有协议的设计示例，不是 Claude/Codex SDK 的真实接口。机器可读任务索引用于创建 Issue 草稿；本次未批量创建 Issues、未部署应用、未调用付费 Agent 执行。
+
+## 当前已实现范围的使用入口
+
+上述内容是完整终态规划；现行交付按[实施状态](tasks/status.md)与GitHub PR/Issue核对，不根据规划清单判断完成。ZT02-06的A/B/C已分别合并，完整文件/预览/导出验收仍保留：
+
+[权限矩阵与证据](development/access-matrix.md)｜[组织审计使用指南](development/organization-audit.md)｜[审计设计决策](adr/ADR-016-organization-audit-view.md)｜[B验收补录](testing/zt02-06-b-report.md)｜[成员应急访问控制](development/emergency-containment.md)｜[完整通道验收待办](tasks/zt02-06-acceptance-followup.md)。
+
+这些入口不代表生产身份认证、完整安全账本、文件业务或真实多模型协作已经完成。
