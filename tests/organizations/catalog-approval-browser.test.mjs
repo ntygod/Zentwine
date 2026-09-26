@@ -13,7 +13,7 @@ async function browserTest(f, work) {
   const origins = [origin],
     app = f.app({ identity: { repository: f.repo, origins } }),
     calls = [],
-    fault = { suffix: null };
+    fault = { suffix: null, mode: "partial" };
   let browser;
   app.addHook("onRequest", async (r) => {
     if (r.url.startsWith("/api/"))
@@ -28,7 +28,19 @@ async function browserTest(f, work) {
       reply.statusCode === 200
     ) {
       fault.suffix = null;
-      reply.raw.destroy();
+      if (fault.mode === "empty") reply.raw.destroy();
+      else {
+        // Headers distinguish an interrupted body from a reused-socket retry before any response.
+        assert.equal(typeof payload, "string");
+        const bytes = Buffer.from(payload);
+        reply.hijack();
+        reply.raw.writeHead(200, {
+          "Content-Type": "application/json",
+          "Content-Length": String(bytes.length),
+          Connection: "close",
+        });
+        reply.raw.end(bytes.subarray(0, Math.min(32, bytes.length - 1)));
+      }
     }
     return payload;
   });
@@ -70,6 +82,21 @@ async function login(f, browser, base, who = f.alice) {
       viewport: { width: 1440, height: 1000 },
     }),
     page = await context.newPage();
+  await context.addInitScript(() => {
+    // Observe application calls, never change their arguments or authorization responses.
+    const calls = [];
+    Object.defineProperty(window, "__catalogFetchWrites", { value: calls });
+    const original = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      if (
+        typeof input === "string" &&
+        init?.method === "POST" &&
+        input.includes("/approvals")
+      )
+        calls.push(input);
+      return original(input, init);
+    };
+  });
   await page.goto(base + legacy);
   await page
     .getByLabel("一次性登录票据", { exact: true })
@@ -275,8 +302,18 @@ test("catalog approval browser PG: server expiry rejects consent and preserves t
       await inspect(page);
       await query(
         f.adminPool,
-        "UPDATE zentwine_approvals.requests SET created_at=clock_timestamp()-interval '1 hour',expires_at=clock_timestamp()-interval '1 minute' WHERE id=$1",
+        "UPDATE zentwine_approvals.requests SET created_at=clock_timestamp()-interval '10 minutes',expires_at=clock_timestamp()-interval '1 minute' WHERE id=$1",
         [a.id],
+      );
+      assert.equal(
+        (
+          await query(
+            f.adminPool,
+            "SELECT expires_at<clock_timestamp() AND expires_at>created_at AND expires_at<=created_at+interval '15 minutes' AS expired_valid_fixture FROM zentwine_approvals.requests WHERE id=$1",
+            [a.id],
+          )
+        ).rows[0].expired_valid_fixture,
+        true,
       );
       await action(page, "批准此目录改名");
       await expect(page.getByRole("alert")).toContainText("有效期或操作规则");
@@ -544,5 +581,66 @@ test("catalog approval browser PG: unknown approval ID returns no metadata or co
       await expect(
         page.getByRole("button", { name: "打开目录操作确认" }),
       ).toHaveCount(0);
+    }),
+  ));
+
+test("catalog approval browser PG: pre-header disconnect may retransmit HTTP but never application intent or database effect", () =>
+  fixture((f) =>
+    browserTest(f, async ({ browser, base, calls, fault }) => {
+      const a = await f.approve(await f.propose()),
+        { page } = await login(f, browser, base);
+      await open(f, page, base, "inspect", a.id);
+      await inspect(page);
+      fault.mode = "empty";
+      fault.suffix = "/execute";
+      await action(page, "执行已批准改名");
+      await expect(page.getByRole("alert")).toContainText("提交结果尚未确认");
+      await page
+        .getByRole("button", { name: "重新核验结果", exact: true })
+        .click();
+      await expect(
+        page.getByRole("region", { name: "已提交执行回执" }),
+      ).toBeVisible();
+      const applicationCalls = await page.evaluate(
+        () =>
+          window.__catalogFetchWrites.filter((p) => p.endsWith("/execute"))
+            .length,
+      );
+      const httpCalls = writes(calls).filter((c) =>
+        c.path.endsWith("/execute"),
+      ).length;
+      const receiptCount = (
+        await query(
+          f.adminPool,
+          "SELECT * FROM zentwine_approvals.receipts WHERE approval_id=$1",
+          [a.id],
+        )
+      ).rows.length;
+      const state = (await f.approvals.inspect(f.owner.scope, a.id)).state;
+      assert.equal(applicationCalls, 1);
+      assert.ok(httpCalls >= applicationCalls);
+      assert.equal(receiptCount, 1);
+      assert.equal(state, "consumed");
+      assert.deepEqual(await dbResource(f), {
+        display_name: a.binding.display_name,
+        object_version: a.binding.resource_version + 1,
+      });
+      await fs.writeFile(
+        "reports/catalog-approval-ui/transport-reconciliation.json",
+        JSON.stringify(
+          {
+            scope:
+              "real Chromium and PostgreSQL, post-commit pre-header disconnect",
+            browser: browser.version(),
+            application_execute_calls: applicationCalls,
+            http_execute_requests: httpCalls,
+            execution_receipts: receiptCount,
+            state,
+            single_resource_version_increment: true,
+          },
+          null,
+          2,
+        ),
+      );
     }),
   ));
