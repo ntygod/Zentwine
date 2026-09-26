@@ -9,7 +9,10 @@ try {
   parseTestDatabaseEnvironment(env);
   const files =
     mode === "--browser"
-      ? ["tests/organizations/browser.test.mjs"]
+      ? [
+          "tests/organizations/browser.test.mjs",
+          "tests/organizations/theme-browser.test.mjs",
+        ]
       : [
           "tests/organizations/lifecycle.test.mjs",
           "tests/organizations/federation.test.mjs",

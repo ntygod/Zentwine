@@ -1,8 +1,11 @@
+import { DesignSystemPage } from "./design-system.js";
 import { OrganizationConsole } from "./organization.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AppBoundary,
+  ThemeProvider,
+  ThemeSelect,
   Brand,
   ConnectionAlert,
   ConnectionBadge,
@@ -14,7 +17,15 @@ const studioUrl = `http://127.0.0.1:5174${STUDIO_PATH}`;
 function Workbench() {
   const { connection, retry } = useBootstrap();
   const path = window.location.pathname;
-  if (path === WORKBENCH_PATH + "/settings") return <OrganizationConsole />;
+  if (path === WORKBENCH_PATH + "/settings")
+    return (
+      <>
+        <div className="zt-appearance-strip">
+          <ThemeSelect />
+        </div>
+        <OrganizationConsole />
+      </>
+    );
   if (path !== "/" && path !== WORKBENCH_PATH)
     return (
       <main className="fatal">
@@ -82,6 +93,13 @@ function Workbench() {
         <header className="topbar">
           <span className="breadcrumb">本地开发空间 / 工作台</span>
           <div className="topbar-right">
+            <a
+              className="zt-foundation-link"
+              href={WORKBENCH_PATH + "/design-system"}
+            >
+              设计系统
+            </a>
+            <ThemeSelect />
             <span className="pill">ENGINEERING PREVIEW</span>
             <ConnectionBadge connection={connection} />
           </div>
@@ -215,8 +233,14 @@ const root = document.getElementById("root");
 if (!root) throw new Error("Missing app root");
 createRoot(root).render(
   <StrictMode>
-    <AppBoundary>
-      <Workbench />
-    </AppBoundary>
+    <ThemeProvider>
+      <AppBoundary>
+        {window.location.pathname === WORKBENCH_PATH + "/design-system" ? (
+          <DesignSystemPage />
+        ) : (
+          <Workbench />
+        )}
+      </AppBoundary>
+    </ThemeProvider>
   </StrictMode>,
 );
