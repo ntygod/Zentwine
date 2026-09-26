@@ -26,3 +26,5 @@
 - [ADR-014 版本绑定审批](ADR-014-bound-approvals.md)：一次性动作许可、职责分离与撤权通知。
 - [ADR-015 组织生命周期](ADR-015-organization-lifecycle.md)：组织治理、访客、邀请及联邦身份适配边界。
 - [ADR-016 审计投影](ADR-016-organization-audit-view.md)：已实现组织历史的只读白名单、分页及迁移回退限制；不是完整审计账本。
+
+- [ADR-017：租户数据访问](ADR-017-tenant-data-access.md)：事务绑定、强制RLS与运行/迁移身份边界。

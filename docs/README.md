@@ -67,3 +67,9 @@
 [权限矩阵与证据](development/access-matrix.md)｜[组织审计使用指南](development/organization-audit.md)｜[审计设计决策](adr/ADR-016-organization-audit-view.md)｜[B验收补录](testing/zt02-06-b-report.md)｜[成员应急访问控制](development/emergency-containment.md)｜[完整通道验收待办](tasks/zt02-06-acceptance-followup.md)。
 
 这些入口不代表生产身份认证、完整安全账本、文件业务或真实多模型协作已经完成。
+
+## 租户数据基础
+
+- [ZT03-01执行记录](tasks/ZT03-01-execution.md)
+- [租户repository使用与边界](development/tenant-repository.md)
+- [ZT03-01验证记录](testing/zt03-01-report.md)
