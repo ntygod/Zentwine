@@ -84,13 +84,40 @@ export async function registerOrganizationRoutes(
   });
   app.get<{ Params: { orgId: string; memberId: string } }>(
     "/api/v1/orgs/:orgId/members/:memberId/emergency-access",
-    { schema: { params: organizationIdParams("memberId"), querystring: organizationEmpty, response: { 200: emergencyStateSchema } } },
-    (r) => call(() => o.repository.emergencyState(requestScope(r), r.params.memberId)),
+    {
+      schema: {
+        params: organizationIdParams("memberId"),
+        querystring: organizationEmpty,
+        response: { 200: emergencyStateSchema },
+      },
+    },
+    (r) =>
+      call(() =>
+        o.repository.emergencyState(requestScope(r), r.params.memberId),
+      ),
   );
-  app.post<{ Params: { orgId: string; memberId: string }; Body: EmergencyInput }>(
+  app.post<{
+    Params: { orgId: string; memberId: string };
+    Body: EmergencyInput;
+  }>(
     "/api/v1/orgs/:orgId/members/:memberId/emergency-access",
-    { bodyLimit: 1024, schema: { params: organizationIdParams("memberId"), querystring: organizationEmpty, body: emergencyInputSchema, response: { 200: emergencyResultSchema } } },
-    (r) => call(() => o.repository.emergencyChange(requestScope(r), r.params.memberId, r.body)),
+    {
+      bodyLimit: 1024,
+      schema: {
+        params: organizationIdParams("memberId"),
+        querystring: organizationEmpty,
+        body: emergencyInputSchema,
+        response: { 200: emergencyResultSchema },
+      },
+    },
+    (r) =>
+      call(() =>
+        o.repository.emergencyChange(
+          requestScope(r),
+          r.params.memberId,
+          r.body,
+        ),
+      ),
   );
   app.get<{ Querystring: OrganizationAuditQuery }>(
     "/api/v1/orgs/:orgId/audit-events",

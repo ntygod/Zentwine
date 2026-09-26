@@ -4,7 +4,10 @@ import { isIdentityId, isContextVersion } from "./identity.js";
 export interface EmergencyInput {
   readonly request_id: string;
   readonly action: "hold" | "release";
-  readonly reason: "suspected_compromise" | "access_review" | "incident_contained";
+  readonly reason:
+    | "suspected_compromise"
+    | "access_review"
+    | "incident_contained";
   readonly confirm_human_id: string;
   readonly expected_version: number;
   readonly expected_member_version: number;
@@ -34,13 +37,31 @@ export interface EmergencyResult {
   readonly replayed: boolean;
 }
 export function validateEmergencyInput(i: EmergencyInput): void {
-  const keys = ["request_id", "action", "reason", "confirm_human_id", "expected_version", "expected_member_version"];
-  if (!i || typeof i !== "object" || Array.isArray(i) ||
-    Object.keys(i).length !== keys.length || Object.keys(i).some((k) => !keys.includes(k)) ||
-    !isIdentityId(i.request_id) || !isIdentityId(i.confirm_human_id) ||
-    !Number.isInteger(i.expected_version) || i.expected_version < 0 || i.expected_version > 2147483645 ||
+  const keys = [
+    "request_id",
+    "action",
+    "reason",
+    "confirm_human_id",
+    "expected_version",
+    "expected_member_version",
+  ];
+  if (
+    !i ||
+    typeof i !== "object" ||
+    Array.isArray(i) ||
+    Object.keys(i).length !== keys.length ||
+    Object.keys(i).some((k) => !keys.includes(k)) ||
+    !isIdentityId(i.request_id) ||
+    !isIdentityId(i.confirm_human_id) ||
+    !Number.isInteger(i.expected_version) ||
+    i.expected_version < 0 ||
+    i.expected_version > 2147483645 ||
     !isContextVersion(i.expected_member_version) ||
-    !(i.action === "hold" && ["suspected_compromise", "access_review"].includes(i.reason) ||
-      i.action === "release" && i.reason === "incident_contained"))
+    !(
+      (i.action === "hold" &&
+        ["suspected_compromise", "access_review"].includes(i.reason)) ||
+      (i.action === "release" && i.reason === "incident_contained")
+    )
+  )
     throw new OrganizationError("invalid_input");
 }

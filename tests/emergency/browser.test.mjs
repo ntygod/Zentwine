@@ -52,7 +52,8 @@ async function login(f, browser, base, human) {
   return { context, page };
 }
 
-const panelFor = (page) => page.getByRole("region", { name: "成员应急访问控制" });
+const panelFor = (page) =>
+  page.getByRole("region", { name: "成员应急访问控制" });
 async function selectTarget(page, f) {
   await page.getByLabel("当前组织", { exact: true }).selectOption(f.orgA);
   const panel = panelFor(page);
@@ -62,60 +63,116 @@ async function selectTarget(page, f) {
   await expect(panel.getByText(/当前状态：未应急阻断/)).toBeVisible();
   return panel;
 }
-test("emergency browser PG: owner explicitly contains and releases another member with fresh-login recovery", () => fixture((f) => browserTest(f, async ({ browser, base }) => {
-  const { page } = await login(f, browser, base, f.alice);
-  const panel = await selectTarget(page, f);
-  const submit = panel.getByRole("button", { name: "确认应急阻断", exact: true });
-  await expect(submit).toBeDisabled();
-  await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
-  await submit.click();
-  await expect(panel.getByText(/当前状态：应急阻断中/)).toBeVisible();
-  await expect(panel.getByText("应急操作已提交", { exact: true })).toBeVisible();
-  assert.equal((await f.state()).held, true);
-  await assert.rejects(f.policy.readResource(f.reviewer.scope, f.a.id));
-  await panel.screenshot({ path: "reports/emergency-ui/owner-containment.png" });
-  await page.setViewportSize({ width: 390, height: 844 });
-  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
-  await panel.screenshot({ path: "reports/emergency-ui/containment-mobile.png" });
-  await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
-  await panel.getByRole("button", { name: "确认解除应急阻断", exact: true }).click();
-  await expect(panel.getByText(/当前状态：未应急阻断/)).toBeVisible();
-  await assert.rejects(f.policy.readResource(f.reviewer.scope, f.a.id));
-  const fresh = await f.auth(f.bob);
-  assert.equal((await f.policy.readResource(fresh.scope, f.a.id)).resource.id, f.a.id);
-  assert.equal(await page.evaluate(() => Object.keys(localStorage).length + Object.keys(sessionStorage).length), 0);
-  const audit = page.getByRole("region", { name: "组织审计记录" });
-  await audit.getByLabel("审计事件类型").selectOption("member.emergency_held");
-  await audit.getByRole("button", { name: "刷新审计记录" }).click();
-  await expect(audit.getByRole("listitem")).toHaveCount(1);
-  await expect(audit.getByText("成员已应急阻断", { exact: true })).toBeVisible();
-})));
-test("emergency browser PG: stale organization tab cannot execute and viewer has no control", () => fixture((f) => browserTest(f, async ({ browser, base }) => {
-  const { page, context } = await login(f, browser, base, f.alice);
-  const panel = await selectTarget(page, f);
-  await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
-  const other = await context.newPage();
-  await other.goto(base + path);
-  await expect(panelFor(other)).toBeVisible();
-  await other.getByLabel("当前组织", { exact: true }).selectOption(f.orgB);
-  await expect(panelFor(other)).toHaveCount(0);
-  await panel.getByRole("button", { name: "确认应急阻断", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("版本已变化");
-  await expect(panelFor(page)).toHaveCount(0);
-  assert.equal((await f.state()).held, false);
-})));
-test("emergency browser PG: database failure clears state and explicit same-request retry commits once", () => fixture((f) => browserTest(f, async ({ browser, base }) => {
-  const { page } = await login(f, browser, base, f.alice);
-  const panel = await selectTarget(page, f);
-  await query(f.adminPool, `REVOKE INSERT ON zentwine_organizations.emergency_receipts FROM "${f.managerRole}"`);
-  await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
-  await panel.getByRole("button", { name: "确认应急阻断", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("暂时不可用");
-  await expect(panel.getByText(/当前状态：/)).toHaveCount(0);
-  assert.equal((await f.state()).held, false);
-  await query(f.adminPool, `GRANT INSERT ON zentwine_organizations.emergency_receipts TO "${f.managerRole}"`);
-  await panel.getByRole("button", { name: "重试同一应急请求" }).click();
-  await expect(panel.getByText(/当前状态：应急阻断中/)).toBeVisible();
-  assert.equal((await f.state()).version, 1);
-  assert.equal((await query(f.adminPool, "SELECT * FROM zentwine_organizations.emergency_receipts")).rows.length, 1);
-})));
+test("emergency browser PG: owner explicitly contains and releases another member with fresh-login recovery", () =>
+  fixture((f) =>
+    browserTest(f, async ({ browser, base }) => {
+      const { page } = await login(f, browser, base, f.alice);
+      const panel = await selectTarget(page, f);
+      const submit = panel.getByRole("button", {
+        name: "确认应急阻断",
+        exact: true,
+      });
+      await expect(submit).toBeDisabled();
+      await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
+      await submit.click();
+      await expect(panel.getByText(/当前状态：应急阻断中/)).toBeVisible();
+      await expect(
+        panel.getByText("应急操作已提交", { exact: true }),
+      ).toBeVisible();
+      assert.equal((await f.state()).held, true);
+      await assert.rejects(f.policy.readResource(f.reviewer.scope, f.a.id));
+      await panel.screenshot({
+        path: "reports/emergency-ui/owner-containment.png",
+      });
+      await page.setViewportSize({ width: 390, height: 844 });
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+        ),
+      );
+      await panel.screenshot({
+        path: "reports/emergency-ui/containment-mobile.png",
+      });
+      await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
+      await panel
+        .getByRole("button", { name: "确认解除应急阻断", exact: true })
+        .click();
+      await expect(panel.getByText(/当前状态：未应急阻断/)).toBeVisible();
+      await assert.rejects(f.policy.readResource(f.reviewer.scope, f.a.id));
+      const fresh = await f.auth(f.bob);
+      assert.equal(
+        (await f.policy.readResource(fresh.scope, f.a.id)).resource.id,
+        f.a.id,
+      );
+      assert.equal(
+        await page.evaluate(
+          () =>
+            Object.keys(localStorage).length +
+            Object.keys(sessionStorage).length,
+        ),
+        0,
+      );
+      const audit = page.getByRole("region", { name: "组织审计记录" });
+      await audit
+        .getByLabel("审计事件类型")
+        .selectOption("member.emergency_held");
+      await audit.getByRole("button", { name: "刷新审计记录" }).click();
+      await expect(audit.getByRole("listitem")).toHaveCount(1);
+      await expect(
+        audit.getByText("成员已应急阻断", { exact: true }),
+      ).toBeVisible();
+    }),
+  ));
+test("emergency browser PG: stale organization tab cannot execute and viewer has no control", () =>
+  fixture((f) =>
+    browserTest(f, async ({ browser, base }) => {
+      const { page, context } = await login(f, browser, base, f.alice);
+      const panel = await selectTarget(page, f);
+      await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
+      const other = await context.newPage();
+      await other.goto(base + path);
+      await expect(panelFor(other)).toBeVisible();
+      await other.getByLabel("当前组织", { exact: true }).selectOption(f.orgB);
+      await expect(panelFor(other)).toHaveCount(0);
+      await panel
+        .getByRole("button", { name: "确认应急阻断", exact: true })
+        .click();
+      await expect(page.getByRole("alert")).toContainText("版本已变化");
+      await expect(panelFor(page)).toHaveCount(0);
+      assert.equal((await f.state()).held, false);
+    }),
+  ));
+test("emergency browser PG: database failure clears state and explicit same-request retry commits once", () =>
+  fixture((f) =>
+    browserTest(f, async ({ browser, base }) => {
+      const { page } = await login(f, browser, base, f.alice);
+      const panel = await selectTarget(page, f);
+      await query(
+        f.adminPool,
+        `REVOKE INSERT ON zentwine_organizations.emergency_receipts FROM "${f.managerRole}"`,
+      );
+      await panel.getByLabel("输入目标身份编号确认").fill(f.bob);
+      await panel
+        .getByRole("button", { name: "确认应急阻断", exact: true })
+        .click();
+      await expect(page.getByRole("alert")).toContainText("暂时不可用");
+      await expect(panel.getByText(/当前状态：/)).toHaveCount(0);
+      assert.equal((await f.state()).held, false);
+      await query(
+        f.adminPool,
+        `GRANT INSERT ON zentwine_organizations.emergency_receipts TO "${f.managerRole}"`,
+      );
+      await panel.getByRole("button", { name: "重试同一应急请求" }).click();
+      await expect(panel.getByText(/当前状态：应急阻断中/)).toBeVisible();
+      assert.equal((await f.state()).version, 1);
+      assert.equal(
+        (
+          await query(
+            f.adminPool,
+            "SELECT * FROM zentwine_organizations.emergency_receipts",
+          )
+        ).rows.length,
+        1,
+      );
+    }),
+  ));

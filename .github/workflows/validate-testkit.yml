@@ -46,7 +46,6 @@ jobs:
           mkdir -p reports
           npm install --global pnpm@11.10.0 --ignore-scripts
           pnpm install --frozen-lockfile
-          tar -czf reports/pinned-formatter.tgz -C node_modules/prettier .
           pnpm build
       - name: Initialize only the disposable service guard
         run: |

@@ -186,10 +186,19 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       if (!r || Object.values(r).some((x) => x !== false))
         throw new OrganizationError("unavailable");
       await c.query(`SELECT org_id FROM ${O}.settings LIMIT 0`);
-      const installed = (await c.query("SELECT to_regclass('zentwine_organizations.emergency_receipts') AS relation")).rows[0]?.["relation"];
+      const installed = (
+        await c.query(
+          "SELECT to_regclass('zentwine_organizations.emergency_receipts') AS relation",
+        )
+      ).rows[0]?.["relation"];
       if (installed) {
-        const privileges = (await c.query("SELECT has_table_privilege(current_user,'zentwine_organizations.emergency_receipts','UPDATE,DELETE,TRUNCATE,TRIGGER') AS rewrites")).rows[0];
-        if (privileges?.["rewrites"] !== false) throw new OrganizationError("unavailable");
+        const privileges = (
+          await c.query(
+            "SELECT has_table_privilege(current_user,'zentwine_organizations.emergency_receipts','UPDATE,DELETE,TRUNCATE,TRIGGER') AS rewrites",
+          )
+        ).rows[0];
+        if (privileges?.["rewrites"] !== false)
+          throw new OrganizationError("unavailable");
       }
     });
   }
@@ -319,18 +328,31 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
     );
   }
 
-  private async emergencyView(c: SqlConnection, org: string, mid: string): Promise<EmergencyState> {
+  private async emergencyView(
+    c: SqlConnection,
+    org: string,
+    mid: string,
+  ): Promise<EmergencyState> {
     const m = await this.member(c, org, mid);
-    if (typeof m["emergency_held"] !== "boolean" || !Number.isInteger(m["emergency_version"]))
+    if (
+      typeof m["emergency_held"] !== "boolean" ||
+      !Number.isInteger(m["emergency_version"])
+    )
       throw new OrganizationError("unavailable");
     return {
-      org_id: org, member_id: mid, human_id: str(m, "human_id"),
-      held: m["emergency_held"], version: num(m, "emergency_version"),
+      org_id: org,
+      member_id: mid,
+      human_id: str(m, "human_id"),
+      held: m["emergency_held"],
+      version: num(m, "emergency_version"),
       member_version: num(m, "object_version"),
       membership_status: str(m, "status") as "active" | "revoked",
     };
   }
-  async emergencyState(s: OrganizationScope, mid: string): Promise<EmergencyState> {
+  async emergencyState(
+    s: OrganizationScope,
+    mid: string,
+  ): Promise<EmergencyState> {
     id(mid);
     return tx(this.pool, async (c) => {
       await this.begin(c, s, [], true, false);
@@ -339,32 +361,55 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       return state;
     });
   }
-  async emergencyChange(s: OrganizationScope, mid: string, input: EmergencyInput): Promise<EmergencyResult> {
+  async emergencyChange(
+    s: OrganizationScope,
+    mid: string,
+    input: EmergencyInput,
+  ): Promise<EmergencyResult> {
     id(mid);
     validateEmergencyInput(input);
     return tx(this.pool, async (c) => {
       id(s?.org_id);
       version(s?.context_version);
       await this.current(c, s, true);
-      const seed = await this.member(c, s.org_id, mid), human = str(seed, "human_id");
+      const seed = await this.member(c, s.org_id, mid),
+        human = str(seed, "human_id");
       const actor = await this.begin(c, s, [human], true);
       // Another currently authorized owner must remain able to manage this organization.
       if (str(actor, "human_id") === human || input.confirm_human_id !== human)
         throw new OrganizationError("forbidden");
       const state = await this.emergencyView(c, s.org_id, mid);
-      const content = hash([mid, human, input.action, input.reason, input.expected_version, input.expected_member_version]);
-      const prior = (await c.query(
-        `SELECT content_hash,result FROM ${O}.emergency_receipts WHERE org_id=$1 AND actor_id=$2 AND request_id=$3`,
-        [s.org_id, actor["human_id"], input.request_id],
-      )).rows[0];
+      const content = hash([
+        mid,
+        human,
+        input.action,
+        input.reason,
+        input.expected_version,
+        input.expected_member_version,
+      ]);
+      const prior = (
+        await c.query(
+          `SELECT content_hash,result FROM ${O}.emergency_receipts WHERE org_id=$1 AND actor_id=$2 AND request_id=$3`,
+          [s.org_id, actor["human_id"], input.request_id],
+        )
+      ).rows[0];
       if (prior) {
-        if (prior["content_hash"] !== content) throw new OrganizationError("version_conflict");
+        if (prior["content_hash"] !== content)
+          throw new OrganizationError("version_conflict");
         await this.current(c, s, true);
         // Return the historical receipt AND current state: a replay cannot claim to reapply an old hold.
-        return { receipt: prior["result"] as EmergencyReceipt, current: state, replayed: true };
+        return {
+          receipt: prior["result"] as EmergencyReceipt,
+          current: state,
+          replayed: true,
+        };
       }
-      if (state.version !== input.expected_version || state.member_version !== input.expected_member_version ||
-        state.held === (input.action === "hold")) throw new OrganizationError("version_conflict");
+      if (
+        state.version !== input.expected_version ||
+        state.member_version !== input.expected_member_version ||
+        state.held === (input.action === "hold")
+      )
+        throw new OrganizationError("version_conflict");
       await c.query(
         `UPDATE ${I}.memberships SET emergency_held=$3,emergency_version=emergency_version+1,object_version=object_version+1 WHERE org_id=$1 AND id=$2`,
         [s.org_id, mid, input.action === "hold"],
@@ -377,18 +422,37 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
         `UPDATE ${O}.invitations SET state='revoked',object_version=object_version+1 WHERE org_id=$1 AND (human_id=$2 OR inviter_id=$2) AND state='pending'`,
         [s.org_id, human],
       );
-      await this.event(c, s.org_id, str(actor, "human_id"), input.action === "hold" ? "member.emergency_held" : "member.emergency_released", mid);
+      await this.event(
+        c,
+        s.org_id,
+        str(actor, "human_id"),
+        input.action === "hold"
+          ? "member.emergency_held"
+          : "member.emergency_released",
+        mid,
+      );
       const current = await this.emergencyView(c, s.org_id, mid);
       const now = (await c.query("SELECT clock_timestamp() AS now")).rows[0];
       if (!now) throw new OrganizationError("unavailable");
       const receipt: EmergencyReceipt = {
-        request_id: input.request_id, member_id: mid, human_id: human,
-        actor_id: str(actor, "human_id"), action: input.action, reason: input.reason,
-        version: current.version, occurred_at: at(now, "now").toISOString(),
+        request_id: input.request_id,
+        member_id: mid,
+        human_id: human,
+        actor_id: str(actor, "human_id"),
+        action: input.action,
+        reason: input.reason,
+        version: current.version,
+        occurred_at: at(now, "now").toISOString(),
       };
       await c.query(
         `INSERT INTO ${O}.emergency_receipts(org_id,actor_id,request_id,content_hash,result) VALUES($1,$2,$3,$4,$5::jsonb)`,
-        [s.org_id, actor["human_id"], input.request_id, content, JSON.stringify(receipt)],
+        [
+          s.org_id,
+          actor["human_id"],
+          input.request_id,
+          content,
+          JSON.stringify(receipt),
+        ],
       );
       await this.current(c, s, true);
       return { receipt, current, replayed: false };
@@ -590,8 +654,17 @@ export class PostgresOrganizationRepository implements OrganizationRepository {
       await this.session(c, s.session_digest);
     });
   }
-  private async rejectHeld(c: SqlConnection, org: string, human: string): Promise<void> {
-    const row = (await c.query(`SELECT COALESCE((to_jsonb(m)->>'emergency_held')::boolean,false) AS held FROM ${I}.memberships m WHERE org_id=$1 AND human_id=$2`, [org, human])).rows[0];
+  private async rejectHeld(
+    c: SqlConnection,
+    org: string,
+    human: string,
+  ): Promise<void> {
+    const row = (
+      await c.query(
+        `SELECT COALESCE((to_jsonb(m)->>'emergency_held')::boolean,false) AS held FROM ${I}.memberships m WHERE org_id=$1 AND human_id=$2`,
+        [org, human],
+      )
+    ).rows[0];
     if (row?.["held"] === true) throw new OrganizationError("forbidden");
   }
   private async canRead(

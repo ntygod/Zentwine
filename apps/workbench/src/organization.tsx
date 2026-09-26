@@ -210,12 +210,22 @@ export function OrganizationConsole() {
     [issuer, setIssuer] = useState(""),
     [clientId, setClientId] = useState("");
   const [emergencyTarget, setEmergencyTarget] = useState("");
-  const [emergencyState, setEmergencyState] = useState<EmergencyState | null>(null);
-  const [emergencyResult, setEmergencyResult] = useState<EmergencyResult | null>(null);
-  const [emergencyPending, setEmergencyPending] = useState<{ member: string; input: {
-    request_id: string; action: "hold" | "release"; reason: EmergencyReceipt["reason"];
-    confirm_human_id: string; expected_version: number; expected_member_version: number;
-  } } | null>(null);
+  const [emergencyState, setEmergencyState] = useState<EmergencyState | null>(
+    null,
+  );
+  const [emergencyResult, setEmergencyResult] =
+    useState<EmergencyResult | null>(null);
+  const [emergencyPending, setEmergencyPending] = useState<{
+    member: string;
+    input: {
+      request_id: string;
+      action: "hold" | "release";
+      reason: EmergencyReceipt["reason"];
+      confirm_human_id: string;
+      expected_version: number;
+      expected_member_version: number;
+    };
+  } | null>(null);
   const gen = useRef(0),
     controller = useRef<AbortController | null>(null),
     inviteRequest = useRef<string | null>(null);
@@ -348,14 +358,25 @@ export function OrganizationConsole() {
         if (gen.current === tick) setBusy(false);
       });
   };
-  const applyEmergency = async (command: NonNullable<typeof emergencyPending>, tick: number) => {
+  const applyEmergency = async (
+    command: NonNullable<typeof emergencyPending>,
+    tick: number,
+  ) => {
     if (!auth) return;
     setEmergencyState(null);
     setEmergencyResult(null);
     setAuditPage(null);
     setEmergencyPending(command);
-    const raw = await api(orgPath(auth) + "/members/" + command.member + "/emergency-access", "POST", command.input);
-    const result = parseEmergencyResult(raw, auth.session.active_org_id ?? "", command.member);
+    const raw = await api(
+      orgPath(auth) + "/members/" + command.member + "/emergency-access",
+      "POST",
+      command.input,
+    );
+    const result = parseEmergencyResult(
+      raw,
+      auth.session.active_org_id ?? "",
+      command.member,
+    );
     if (gen.current !== tick) return;
     setEmergencyPending(null);
     setEmergencyState(result.current);
@@ -1161,30 +1182,70 @@ export function OrganizationConsole() {
               }
             />
           )}
-        {cap === "ready" && auth && me?.role === "owner" && me.access_kind === "member" && (
-          <EmergencyAccessPanel
-            key={auth.session.id + ":" + auth.session.context_version + ":" + (auth.session.active_org_id ?? "")}
-            members={members} actor={me.human_id} target={emergencyTarget}
-            state={emergencyState} result={emergencyResult} busy={busy} retry={emergencyPending !== null}
-            onTarget={(member) => { setEmergencyTarget(member); setEmergencyState(null); setEmergencyResult(null); setEmergencyPending(null); }}
-            onLoad={() => run(async (tick) => {
-              setEmergencyState(null); setEmergencyResult(null);
-              const raw = await api(orgPath(auth) + "/members/" + emergencyTarget + "/emergency-access");
-              const state = parseEmergencyState(raw, auth.session.active_org_id ?? "", emergencyTarget);
-              if (gen.current === tick) setEmergencyState(state);
-            })}
-            onSubmit={(reason) => {
-              if (!emergencyState) return;
-              const command: NonNullable<typeof emergencyPending> = { member: emergencyTarget, input: {
-                request_id: crypto.randomUUID(), action: emergencyState.held ? "release" : "hold", reason,
-                confirm_human_id: emergencyState.human_id,
-                expected_version: emergencyState.version, expected_member_version: emergencyState.member_version,
-              } };
-              run((tick) => applyEmergency(command, tick));
-            }}
-            onRetry={() => { if (emergencyPending) run((tick) => applyEmergency(emergencyPending, tick)); }}
-          />
-        )}
+        {cap === "ready" &&
+          auth &&
+          me?.role === "owner" &&
+          me.access_kind === "member" && (
+            <EmergencyAccessPanel
+              key={
+                auth.session.id +
+                ":" +
+                auth.session.context_version +
+                ":" +
+                (auth.session.active_org_id ?? "")
+              }
+              members={members}
+              actor={me.human_id}
+              target={emergencyTarget}
+              state={emergencyState}
+              result={emergencyResult}
+              busy={busy}
+              retry={emergencyPending !== null}
+              onTarget={(member) => {
+                setEmergencyTarget(member);
+                setEmergencyState(null);
+                setEmergencyResult(null);
+                setEmergencyPending(null);
+              }}
+              onLoad={() =>
+                run(async (tick) => {
+                  setEmergencyState(null);
+                  setEmergencyResult(null);
+                  const raw = await api(
+                    orgPath(auth) +
+                      "/members/" +
+                      emergencyTarget +
+                      "/emergency-access",
+                  );
+                  const state = parseEmergencyState(
+                    raw,
+                    auth.session.active_org_id ?? "",
+                    emergencyTarget,
+                  );
+                  if (gen.current === tick) setEmergencyState(state);
+                })
+              }
+              onSubmit={(reason) => {
+                if (!emergencyState) return;
+                const command: NonNullable<typeof emergencyPending> = {
+                  member: emergencyTarget,
+                  input: {
+                    request_id: crypto.randomUUID(),
+                    action: emergencyState.held ? "release" : "hold",
+                    reason,
+                    confirm_human_id: emergencyState.human_id,
+                    expected_version: emergencyState.version,
+                    expected_member_version: emergencyState.member_version,
+                  },
+                };
+                run((tick) => applyEmergency(command, tick));
+              }}
+              onRetry={() => {
+                if (emergencyPending)
+                  run((tick) => applyEmergency(emergencyPending, tick));
+              }}
+            />
+          )}
         <footer className="page-footer">
           组织身份开发阶段 · 不会启动模型或自动部署服务
         </footer>

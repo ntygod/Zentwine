@@ -3,7 +3,11 @@ import type {
   OrganizationAuditQuery,
   OrganizationAuditPage,
 } from "./organization-audit.js";
-import type { EmergencyInput, EmergencyState, EmergencyResult } from "./emergency.js";
+import type {
+  EmergencyInput,
+  EmergencyState,
+  EmergencyResult,
+} from "./emergency.js";
 /** Organization application ports. Provider verifiers are trusted server adapters, never browser claims. */
 export const ORGANIZATION_VERSION = "1.0.0" as const;
 export type OrganizationErrorCode =
@@ -125,8 +129,15 @@ export interface SsoPortRepository {
   ): Promise<void>;
 }
 export interface OrganizationRepository extends SsoPortRepository {
-  emergencyState(s: OrganizationScope, memberId: string): Promise<EmergencyState>;
-  emergencyChange(s: OrganizationScope, memberId: string, input: EmergencyInput): Promise<EmergencyResult>;
+  emergencyState(
+    s: OrganizationScope,
+    memberId: string,
+  ): Promise<EmergencyState>;
+  emergencyChange(
+    s: OrganizationScope,
+    memberId: string,
+    input: EmergencyInput,
+  ): Promise<EmergencyResult>;
   audit(
     s: OrganizationScope,
     input: OrganizationAuditQuery,
