@@ -1,0 +1,58 @@
+.catalog-approval-page .catalog-approval-facts {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: 0.7rem 1.2rem;
+  margin: 1.25rem 0;
+}
+.catalog-approval-facts dt {
+  font-weight: 600;
+}
+.catalog-approval-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.catalog-approval-page label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.catalog-approval-page input:not([type="checkbox"]) {
+  width: 100%;
+  padding: 0.7rem;
+  color: var(--zt-text);
+  background: var(--zt-surface);
+  border: 1px solid var(--zt-border);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+.catalog-approval-page .catalog-confirm {
+  flex-direction: row;
+  align-items: flex-start;
+}
+.catalog-approval-page .catalog-confirm input {
+  flex: none;
+  margin-top: 0.25rem;
+}
+.catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+.catalog-caution {
+  border-inline-start: 3px solid currentColor;
+  padding-inline-start: 1rem;
+}
+.catalog-approval-page small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .catalog-approval-page .catalog-approval-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .catalog-approval-facts dd {
+    margin-bottom: 0.7rem;
+  }
+}

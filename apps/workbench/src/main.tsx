@@ -1,3 +1,5 @@
+import { CatalogApprovalPage } from "./catalog-approval.js";
+import { parseCatalogApprovalPath } from "@zentwine/contracts";
 import { TeamWorkbench } from "./team-workbench.js";
 import {
   parseResourceObjectPath,
@@ -238,6 +240,7 @@ function Workbench() {
     </div>
   );
 }
+const approvalRoute = parseCatalogApprovalPath(window.location.pathname);
 const teamRoute = parseOrganizationWorkbenchPath(window.location.pathname);
 const objectRoute = parseResourceObjectPath(window.location.pathname);
 const root = document.getElementById("root");
@@ -246,7 +249,9 @@ createRoot(root).render(
   <StrictMode>
     <ThemeProvider>
       <AppBoundary>
-        {objectRoute ? (
+        {approvalRoute ? (
+          <CatalogApprovalPage route={approvalRoute} />
+        ) : objectRoute ? (
           <TeamWorkbench
             org={objectRoute.org}
             view="overview"
