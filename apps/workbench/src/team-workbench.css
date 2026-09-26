@@ -1,0 +1,143 @@
+.team-workbench {
+  min-height: 100vh;
+}
+.team-header {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 24px;
+  border-bottom: 1px solid var(--zt-border);
+}
+.team-header .brand {
+  margin: 0;
+  margin-right: auto;
+}
+.team-main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 32px 24px;
+}
+.team-main p {
+  line-height: 1.7;
+}
+.team-context,
+.team-card,
+.team-error {
+  padding: 24px;
+  margin: 24px 0;
+  border: 1px solid var(--zt-border);
+  border-radius: 14px;
+}
+.team-context {
+  background: var(--zt-surface);
+}
+.team-picker {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.team-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1;
+}
+.team-picker input,
+.team-picker select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 10px;
+  font: inherit;
+  background: var(--zt-surface);
+  color: var(--zt-text);
+  border: 1px solid var(--zt-controlBorder);
+  border-radius: 8px;
+}
+.team-main button {
+  margin: 0 8px 8px 0;
+}
+.team-main button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.team-main button:focus-visible,
+.team-main input:focus-visible,
+.team-main select:focus-visible,
+.team-main a:focus-visible {
+  outline: 3px solid var(--zt-focus);
+  outline-offset: 3px;
+}
+.team-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0;
+}
+.team-nav a {
+  padding: 10px 16px;
+  border: 1px solid var(--zt-border);
+  border-radius: 8px;
+}
+.team-nav a[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.team-snapshot,
+.team-resources small {
+  font-size: 13px;
+}
+.team-resources {
+  padding: 0;
+  list-style: none;
+}
+.team-resources li {
+  padding: 18px 0;
+  border-top: 1px solid var(--zt-border);
+}
+.team-resources small {
+  display: block;
+  margin-top: 8px;
+}
+.team-main small,
+.team-main dd,
+.team-main strong {
+  overflow-wrap: anywhere;
+}
+.team-main dl {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(0, 3fr);
+  gap: 16px;
+}
+.team-main dd {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .team-main {
+    padding: 24px 16px;
+  }
+  .team-header {
+    padding: 16px;
+  }
+  .team-context,
+  .team-card,
+  .team-error {
+    padding: 16px;
+  }
+  .team-picker {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+@media (forced-colors: active) {
+  .team-main button,
+  .team-nav a {
+    border: 1px solid ButtonText;
+  }
+}

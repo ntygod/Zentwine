@@ -1,3 +1,8 @@
+import { TeamWorkbench } from "./team-workbench.js";
+import {
+  ORGANIZATIONS_PATH,
+  parseOrganizationWorkbenchPath,
+} from "@zentwine/contracts";
 import { DesignSystemPage } from "./design-system.js";
 import { OrganizationConsole } from "./organization.js";
 import { StrictMode } from "react";
@@ -98,6 +103,9 @@ function Workbench() {
               href={WORKBENCH_PATH + "/design-system"}
             >
               设计系统
+            </a>
+            <a className="zt-foundation-link" href={ORGANIZATIONS_PATH}>
+              组织工作台
             </a>
             <ThemeSelect />
             <span className="pill">ENGINEERING PREVIEW</span>
@@ -229,13 +237,16 @@ function Workbench() {
     </div>
   );
 }
+const teamRoute = parseOrganizationWorkbenchPath(window.location.pathname);
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing app root");
 createRoot(root).render(
   <StrictMode>
     <ThemeProvider>
       <AppBoundary>
-        {window.location.pathname === WORKBENCH_PATH + "/design-system" ? (
+        {teamRoute ? (
+          <TeamWorkbench {...teamRoute} />
+        ) : window.location.pathname === WORKBENCH_PATH + "/design-system" ? (
           <DesignSystemPage />
         ) : (
           <Workbench />
