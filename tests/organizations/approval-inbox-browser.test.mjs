@@ -13,7 +13,7 @@ async function browserTest(f, work) {
   const origins = [origin],
     app = f.app({ identity: { repository: f.repo, origins } }),
     calls = [];
-  let browser;
+  let browser, detailHook;
   app.addHook("onRequest", async (r) => {
     if (r.url.startsWith("/api/"))
       calls.push({ path: r.url, method: r.method });
@@ -22,12 +22,15 @@ async function browserTest(f, work) {
     "/org/:org/workbench",
     "/org/:org/workbench/:view",
     "/org/:org/workbench/approvals/:id",
+    "/org/:org/workbench/objects/:id/rename",
   ])
-    app.get(path, async (_r, reply) =>
-      reply
+    app.get(path, async (r, reply) => {
+      if (path === "/org/:org/workbench/approvals/:id")
+        await detailHook?.(r.params.id);
+      return reply
         .type("text/html")
-        .send(await fs.readFile("apps/workbench/dist/index.html", "utf8")),
-    );
+        .send(await fs.readFile("apps/workbench/dist/index.html", "utf8"));
+    });
   app.get("/assets/:file", async (r, reply) => {
     if (!/^index-[a-zA-Z0-9_-]+\.(js|css)$/.test(r.params.file))
       return reply.code(404).send();
@@ -43,7 +46,14 @@ async function browserTest(f, work) {
     origins.push(base);
     browser = await chromium.launch({ headless: true });
     await fs.mkdir("reports/approval-inbox-ui", { recursive: true });
-    await work({ browser, base, calls });
+    await work({
+      browser,
+      base,
+      calls,
+      holdDetail: (hook) => {
+        detailHook = hook;
+      },
+    });
   } finally {
     await browser?.close();
     await app.close();
@@ -247,7 +257,11 @@ test("inbox browser PG: organization revocation and cross-window switching clear
         other.getByRole("navigation", { name: "组织导航" }),
       ).toBeVisible();
       await page.bringToFront();
-      await page.getByRole("button", { name: "确认切换到链接组织" }).waitFor();
+      // Headless tabs do not consistently synthesize OS focus; exercise the real focus handler explicitly.
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await expect(
+        page.getByRole("button", { name: "确认切换到链接组织" }),
+      ).toBeVisible();
       await expect(records(page)).toHaveCount(0);
       const bob = await login(f, browser, base, f.bob);
       await open(f, bob.page, base);
@@ -374,5 +388,85 @@ test("inbox browser PG: keyboard filters and three themes remain usable at narro
       await page.emulateMedia({ forcedColors: "active" });
       await expect(records(page).getByRole("link")).toBeVisible();
       assert.equal(writes(calls).length, 0);
+    }),
+  ));
+
+test("inbox browser PG: recorded request never renders decision detail under the old request URL", () =>
+  fixture((f) =>
+    browserTest(f, async ({ browser, base, calls, holdDetail }) => {
+      const { page } = await login(f, browser, base);
+      await open(f, page, base);
+      await page.goto(base + catalogApprovalPath(f.orgA, "request", f.a.id));
+      await expect(
+        page.getByRole("form", { name: "新目录改名申请" }),
+      ).toBeVisible();
+      let release, reached;
+      const waiting = new Promise((resolve) => {
+        release = resolve;
+      });
+      const started = new Promise((resolve) => {
+        reached = resolve;
+      });
+      holdDetail(async (id) => {
+        reached(id);
+        await waiting;
+      });
+      await page
+        .getByRole("textbox", { name: "拟登记的新名称" })
+        .fill("先完成导航再展示决策");
+      await page
+        .getByRole("checkbox", { name: "仅申请改名，必须经另一名负责人审核" })
+        .check();
+      const clicking = page
+        .getByRole("button", { name: "提交目录改名申请", exact: true })
+        .click();
+      clicking.catch(() => {});
+      let approval;
+      try {
+        approval = await started;
+        assert.notEqual(approval, "rename");
+        assert.equal(
+          new URL(page.url()).pathname,
+          catalogApprovalPath(f.orgA, "request", f.a.id),
+        );
+        const displayed = await page.evaluate(() => ({
+          detailed:
+            document.querySelector('[aria-label="精确审批范围"]') !== null,
+          decision: document.querySelector("#approval-decision-title") !== null,
+          recorded:
+            document.body.textContent.includes("申请已记录，正在打开详情"),
+          target: [...document.querySelectorAll("a")]
+            .find((a) => a.textContent.trim() === "前往已记录的审批")
+            ?.getAttribute("href"),
+        }));
+        assert.equal(displayed.detailed, false);
+        assert.equal(displayed.decision, false);
+        assert.equal(displayed.recorded, true);
+        assert.equal(
+          displayed.target,
+          catalogApprovalPath(f.orgA, "inspect", approval),
+        );
+      } finally {
+        release();
+        holdDetail(null);
+        await clicking;
+      }
+      await expect(page).toHaveURL(
+        base + catalogApprovalPath(f.orgA, "inspect", approval),
+      );
+      await expect(
+        page.getByRole("region", { name: "精确审批范围", exact: true }),
+      ).toBeVisible();
+      assert.equal(writes(calls).length, 1);
+      assert.equal(
+        (
+          await query(
+            f.adminPool,
+            "SELECT state FROM zentwine_approvals.requests WHERE id=$1",
+            [approval],
+          )
+        ).rows[0].state,
+        "pending",
+      );
     }),
   ));

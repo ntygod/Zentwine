@@ -395,7 +395,22 @@ export function CatalogApprovalPage({
                 />
               )
             )}
-            {state.approval && (
+            {state.approval && route.mode === "request" && (
+              <section className="card team-card" role="status">
+                <h2>申请已记录，正在打开详情</h2>
+                <p>当前仍是申请入口，审核与执行只在该申请的独立详情页进行。</p>
+                <a
+                  href={catalogApprovalPath(
+                    route.org,
+                    "inspect",
+                    state.approval.id,
+                  )}
+                >
+                  前往已记录的审批
+                </a>
+              </section>
+            )}
+            {state.approval && route.mode === "inspect" && (
               <>
                 <section className="card team-card" aria-label="精确审批范围">
                   <h2>精确审批范围</h2>
