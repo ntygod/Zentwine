@@ -1,3 +1,4 @@
+import { catalogApprovalPath } from "@zentwine/contracts";
 import "@zentwine/ui/object-page.css";
 import { ObjectPageFrame, DecisionDrawer, useObjectLayout } from "@zentwine/ui";
 import type {
@@ -105,6 +106,14 @@ export function ResourceObjectContent({
           <p>
             来源：当前组织的资源读取接口。每次打开、刷新及恢复页面均重新核验；这个快照不可复用为授权。
           </p>
+          {member.access_kind === "member" && member.role !== "viewer" && (
+            <p>
+              <a href={catalogApprovalPath(r.org_id, "request", r.id)}>
+                申请目录改名
+              </a>{" "}
+              · 独立审批页面，进入不会执行改名或启动 Run。
+            </p>
+          )}
           <DecisionDrawer title="读取判定 · 非批准" trigger="查看读取判定">
             <p>
               这是本次资源读取的历史判定，不是人类批准、内容签名或可复用执行许可。

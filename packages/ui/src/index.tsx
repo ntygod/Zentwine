@@ -105,3 +105,5 @@ export * from "./workbench.js";
 
 export * from "./object-page.js";
 export * from "./object-layout.js";
+
+export * from "./catalog-approval.js";
