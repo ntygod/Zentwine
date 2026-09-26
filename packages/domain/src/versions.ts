@@ -62,6 +62,7 @@ export interface RevisionResult {
   readonly expected_version: number;
   readonly current: RevisionHead | null;
 }
+/** Port contract only. A durable implementation and authority checks are separate work. */
 export interface RevisionUnitOfWork {
   command(command: RevisionCommand): Promise<RevisionResult>;
   head(objectId: string): Promise<RevisionHead | null>;
@@ -137,6 +138,7 @@ export function validateRevisionRelation(r: RevisionRelation): void {
   )
     fail();
 }
+/** Validate parsed/trusted records. Use snapshotRevisionCommand at an in-memory input boundary. */
 export function validateRevisionCommand(c: RevisionCommand): void {
   if (!record(c)) fail();
   exact(
@@ -178,7 +180,7 @@ export function validateRevisionCommand(c: RevisionCommand): void {
   )
     fail();
 }
-/** Pure reference rule; database independently enforces the same finite transitions. */
+/** Pure transition shape only: this does not check identity, authorize, approve, or commit anything. */
 export function nextRevisionStatus(
   status: RevisionStatus | null,
   action: RevisionCommand["action"],
@@ -275,4 +277,15 @@ export function canonicalizeContent(value: unknown): string {
     return result;
   };
   return visit(value, 0);
+}
+/** Synchronous defensive copy before async work. Not an authorization or database CAS operation. */
+export function snapshotRevisionCommand(input: unknown): RevisionCommand {
+  const command = JSON.parse(canonicalizeContent(input)) as RevisionCommand;
+  validateRevisionCommand(command);
+  if (command.action === "revise") {
+    Object.freeze(command.content);
+    for (const relation of command.relations) Object.freeze(relation);
+    Object.freeze(command.relations);
+  }
+  return Object.freeze(command);
 }

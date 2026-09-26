@@ -1,11 +1,7 @@
-import { createHash } from "node:crypto";
 import {
   TenantError,
-  canonicalizeContent,
-  CANONICALIZATION_VERSION,
-  validateTenantKind,
+  snapshotRevisionCommand,
   validateContentDigest,
-  validateRevisionCommand,
   validateRevisionRelation,
   validateTenantIds,
   validateVersion,
@@ -18,37 +14,8 @@ import {
   type RevisionUnitOfWork,
 } from "@zentwine/domain";
 import type { SqlConnection } from "./connection.js";
-export function digestContent(schemaId: string, value: unknown): ContentDigest {
-  validateTenantKind(schemaId);
-  const canonical = canonicalizeContent(value);
-  return Object.freeze({
-    algorithm: "sha256",
-    canonicalization_version: CANONICALIZATION_VERSION,
-    schema_id: schemaId,
-    content_hash: createHash("sha256")
-      .update(
-        "zentwine.content-digest.v1\0" +
-          schemaId +
-          "\0" +
-          CANONICALIZATION_VERSION +
-          "\0" +
-          canonical,
-      )
-      .digest("hex"),
-    content_bytes: Buffer.byteLength(canonical, "utf8"),
-  });
-}
-export function verifyContentDigest(
-  digest: ContentDigest,
-  value: unknown,
-): boolean {
-  validateContentDigest(digest);
-  const actual = digestContent(digest.schema_id, value);
-  return (
-    actual.content_hash === digest.content_hash &&
-    actual.content_bytes === digest.content_bytes
-  );
-}
+// Preserve the draft module's imports without retaining a second implementation.
+export { digestContent, verifyContentDigest } from "./content-digest.js";
 const object = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
 const date = (v: unknown): string => {
@@ -59,39 +26,79 @@ const date = (v: unknown): string => {
 };
 function head(v: unknown, org: string, id: string): RevisionHead | null {
   if (v === null) return null;
-  if (
-    !object(v) ||
-    Object.keys(v).length !== 16 ||
-    v["org_id"] !== org ||
-    v["object_id"] !== id ||
-    !isIdentityId(v["revision_id"]) ||
-    !isIdentityId(v["created_by"]) ||
-    !isIdentityId(v["changed_by"]) ||
-    (v["parent_revision_id"] !== null &&
-      !isIdentityId(v["parent_revision_id"])) ||
-    !["draft", "in_review", "approved", "superseded", "retired"].includes(
-      String(v["status"]),
+  // Invalid database output is a service failure, not invalid caller input.
+  try {
+    if (
+      !object(v) ||
+      Object.keys(v).length !== 16 ||
+      v["org_id"] !== org ||
+      v["object_id"] !== id ||
+      !isIdentityId(v["revision_id"]) ||
+      !isIdentityId(v["created_by"]) ||
+      !isIdentityId(v["changed_by"]) ||
+      (v["parent_revision_id"] !== null &&
+        !isIdentityId(v["parent_revision_id"])) ||
+      !["draft", "in_review", "approved", "superseded", "retired"].includes(
+        String(v["status"]),
+      )
     )
-  )
-    throw new Error();
-  validateVersion(v["object_version"], 1);
-  validateVersion(v["revision_number"], 1);
-  if (Number(v["revision_number"]) > Number(v["object_version"]))
-    throw new Error();
-  validateContentDigest({
-    algorithm: v["algorithm"],
-    canonicalization_version: v["canonicalization_version"],
-    schema_id: v["schema_id"],
-    content_hash: v["content_hash"],
-    content_bytes: v["content_bytes"],
-  } as ContentDigest);
-  return Object.freeze({
-    ...v,
-    created_at: date(v["created_at"]),
-    changed_at: date(v["changed_at"]),
-  }) as unknown as RevisionHead;
+      throw new Error();
+    validateVersion(v["object_version"], 1);
+    validateVersion(v["revision_number"], 1);
+    if (
+      Number(v["revision_number"]) > Number(v["object_version"]) ||
+      (v["revision_number"] === 1) !== (v["parent_revision_id"] === null) ||
+      v["parent_revision_id"] === v["revision_id"]
+    )
+      throw new Error();
+    validateContentDigest({
+      algorithm: v["algorithm"],
+      canonicalization_version: v["canonicalization_version"],
+      schema_id: v["schema_id"],
+      content_hash: v["content_hash"],
+      content_bytes: v["content_bytes"],
+    } as ContentDigest);
+    return Object.freeze({
+      ...v,
+      created_at: date(v["created_at"]),
+      changed_at: date(v["changed_at"]),
+    }) as unknown as RevisionHead;
+  } catch {
+    throw new Error("Invalid revision snapshot");
+  }
 }
-/** No raw connection escapes. Every operation participates in the original unit's failure/drain lifecycle. */
+function appliedMatches(
+  command: RevisionCommand,
+  current: RevisionHead,
+): boolean {
+  if (current.object_version !== command.expected_version + 1) return false;
+  if (command.action === "revise") {
+    return (
+      current.status === "draft" &&
+      current.created_by === current.changed_by &&
+      current.algorithm === command.content.algorithm &&
+      current.canonicalization_version ===
+        command.content.canonicalization_version &&
+      current.schema_id === command.content.schema_id &&
+      current.content_hash === command.content.content_hash &&
+      current.content_bytes === command.content.content_bytes
+    );
+  }
+  const target = {
+    submit: "in_review",
+    approve: "approved",
+    reject: "draft",
+    supersede: "superseded",
+    retire: "retired",
+  } as const;
+  return (
+    current.revision_id === command.revision_id &&
+    current.content_hash === command.content_hash &&
+    current.status === target[command.action]
+  );
+}
+/** No raw connection escapes. Operations use the enclosing unit's failure/drain lifecycle.
+ * Output agreement is not a substitute for the database's authorization and CAS checks. */
 export class PostgresRevisionUnit implements RevisionUnitOfWork {
   constructor(
     private readonly run: <T>(
@@ -134,22 +141,22 @@ export class PostgresRevisionUnit implements RevisionUnitOfWork {
     });
   }
   command(input: RevisionCommand): Promise<RevisionResult> {
-    // Snapshot validated input synchronously: callers cannot mutate authority or content while waiting for a query.
     let command: RevisionCommand;
     try {
-      command = JSON.parse(canonicalizeContent(input)) as RevisionCommand;
-      validateRevisionCommand(command);
+      command = snapshotRevisionCommand(input);
     } catch (e) {
       return this.run(async () => {
         throw e;
       });
     }
     return this.operate(async (c) => {
-      const result = (
+      const rows = (
         await c.query("SELECT zentwine_versions.apply($1::jsonb) AS result", [
           JSON.stringify(command),
         ])
-      ).rows[0]?.["result"];
+      ).rows;
+      if (rows.length !== 1) throw new Error();
+      const result = rows[0]?.["result"];
       if (
         !object(result) ||
         Object.keys(result).length !== 3 ||
@@ -162,7 +169,7 @@ export class PostgresRevisionUnit implements RevisionUnitOfWork {
       const current = head(result["current"], this.org, command.object_id);
       if (
         result["outcome"] === "applied" &&
-        (!current || current.object_version !== command.expected_version + 1)
+        (!current || !appliedMatches(command, current))
       )
         throw new Error();
       return Object.freeze({
@@ -185,13 +192,17 @@ export class PostgresRevisionUnit implements RevisionUnitOfWork {
     return this.operate(async (c) => {
       validateTenantIds([id]);
       if (version !== null) validateVersion(version, 1);
-      const row = (
+      const rows = (
         await c.query(
           "SELECT * FROM zentwine_versions.snapshots WHERE object_id=$1 AND ($2::integer IS NULL OR object_version=$2) ORDER BY object_version DESC LIMIT 1",
           [id, version],
         )
-      ).rows[0];
-      return head(row ?? null, this.org, id);
+      ).rows;
+      if (rows.length > 1) throw new Error();
+      const current = head(rows[0] ?? null, this.org, id);
+      if (current && version !== null && current.object_version !== version)
+        throw new Error();
+      return current;
     });
   }
   relations(
@@ -208,12 +219,16 @@ export class PostgresRevisionUnit implements RevisionUnitOfWork {
         )
       ).rows;
       if (rows.length > 32) throw new Error();
-      return Object.freeze(
-        rows.map((r) => {
-          validateRevisionRelation(r as unknown as RevisionRelation);
-          return Object.freeze(r) as unknown as RevisionRelation;
-        }),
-      );
+      try {
+        return Object.freeze(
+          rows.map((r) => {
+            validateRevisionRelation(r as unknown as RevisionRelation);
+            return Object.freeze(r) as unknown as RevisionRelation;
+          }),
+        );
+      } catch {
+        throw new Error("Invalid revision relationship");
+      }
     });
   }
 }
