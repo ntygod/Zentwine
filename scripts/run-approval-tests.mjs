@@ -14,6 +14,7 @@ try {
       "tests/approvals/http.test.mjs",
       "tests/approvals/waits.test.mjs",
       "tests/approvals/hardening.test.mjs",
+      "tests/approvals/inbox.test.mjs",
     ],
     { env, stdio: "inherit", timeout: 240000, killSignal: "SIGKILL" },
   );

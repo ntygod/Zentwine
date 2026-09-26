@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Brand, ThemeSelect, useOrganizationWorkbench } from "@zentwine/ui";
 import {
   resourceObjectPath,
+  approvalInboxPath,
   WORKBENCH_PATH,
   ORGANIZATIONS_PATH,
   organizationWorkbenchPath,
@@ -215,6 +216,9 @@ export function TeamWorkbench({
                   {labels[v]}
                 </a>
               ))}
+              {state.member.access_kind === "member" && (
+                <a href={approvalInboxPath(state.org)}>目录审批工作台</a>
+              )}
             </nav>
             <p className="team-snapshot">
               按次核验的快照，非实时推送。切页、搜索、回到窗口或恢复网络时重新读取；已返回的数据不能远程收回。

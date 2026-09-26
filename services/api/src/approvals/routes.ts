@@ -3,11 +3,14 @@ import {
   ApprovalError,
   type ApprovalRepository,
   type ApprovalInput,
+  type ApprovalInboxQuery,
   type ApprovalGuard,
   type ApprovalExecution,
 } from "@zentwine/policy";
 import {
   approvalParamsSchema,
+  approvalInboxQuerySchema,
+  approvalInboxPageSchema,
   approvalInputSchema,
   approvalGuardSchema,
   approvalDecisionInputSchema,
@@ -66,6 +69,17 @@ export async function registerApprovalRoutes(
     }
     limiter.take(r.ip);
   });
+  app.get<{ Querystring: ApprovalInboxQuery }>(
+    "/api/v1/orgs/:orgId/approvals",
+    {
+      schema: {
+        params: identityOrgParams,
+        querystring: approvalInboxQuerySchema,
+        response: { 200: approvalInboxPageSchema },
+      },
+    },
+    async (r) => call(() => o.repository.list(requestScope(r), r.query)),
+  );
   app.post<{ Body: ApprovalInput }>(
     "/api/v1/orgs/:orgId/approvals",
     {

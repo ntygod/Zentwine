@@ -7,6 +7,7 @@ import {
 } from "@zentwine/ui";
 import {
   catalogApprovalPath,
+  approvalInboxPath,
   catalogApprovalActions,
   resourceObjectPath,
   organizationWorkbenchPath,
@@ -255,6 +256,7 @@ export function CatalogApprovalPage({
       <header className="team-header">
         <Brand />
         <a href={WORKBENCH_PATH}>工程首页</a>
+        <a href={approvalInboxPath(route.org)}>目录审批工作台</a>
         <ThemeSelect />
       </header>
       <main

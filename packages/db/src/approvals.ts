@@ -1,3 +1,4 @@
+import { ApprovalInboxCursor } from "./approval-inbox-cursor.js";
 import { membershipAccess } from "./organization-guards.js";
 import { appendApprovalEvent } from "./approval-events.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -8,6 +9,10 @@ import {
 } from "@zentwine/domain";
 import {
   ApprovalError,
+  normalizeApprovalInboxQuery,
+  type ApprovalInboxQuery,
+  type ApprovalInboxPage,
+  type ApprovalInboxEntry,
   APPROVAL_VERSION,
   APPROVAL_LIFETIME_MS,
   ACTION_PERMIT_LIFETIME_MS,
@@ -117,6 +122,7 @@ const stamp = (a: Authority) => ({
 });
 /** Trusted control-plane only. No model-supplied callback or generic command execution. */
 export class PostgresApprovalRepository implements ApprovalRepository {
+  private readonly inboxCursor = new ApprovalInboxCursor();
   constructor(private readonly pool: IdentityPool) {}
   async assertRuntimeRole(): Promise<void> {
     await tx(this.pool, async (c) => {
@@ -781,6 +787,142 @@ export class PostgresApprovalRepository implements ApprovalRepository {
         throw new ApprovalError("forbidden");
       await this.transition(ctx, "revoked", "revoked");
       return this.finish(ctx);
+    });
+  }
+  /** Discovery uses the same human/resource visibility as inspect, never approval authority.
+   * The event-stream lock orders creation with readers; current status/visibility are rechecked per page.
+   * Permissions are filtered before LIMIT. No global sequence or hidden count escapes the encrypted cursor. */
+  async list(
+    s: PolicyScope,
+    input: ApprovalInboxQuery,
+  ): Promise<ApprovalInboxPage> {
+    const q = normalizeApprovalInboxQuery(input);
+    return tx(this.pool, async (c) => {
+      const ctx = await this.context(c, s);
+      if (q.lane === "review" && ctx.actor.role !== "owner")
+        throw new ApprovalError("forbidden");
+      const observed = await now(c);
+      const binding = JSON.stringify([
+        "approval-inbox-v1",
+        s.session_digest,
+        s.org_id,
+        s.context_version,
+        stamp(ctx.actor),
+        q.lane,
+        q.state,
+        q.limit,
+      ]);
+      const position =
+        q.cursor === undefined
+          ? null
+          : this.inboxCursor.decode(q.cursor, binding, observed);
+      const head =
+        position?.head ??
+        (
+          await c.query(
+            `SELECT COALESCE(MAX(sequence),0)::text AS head FROM ${A}.events WHERE org_id=$1`,
+            [s.org_id],
+          )
+        ).rows[0]?.["head"];
+      if (!validApprovalCursor(head)) throw new ApprovalError("unavailable");
+      const rows = (
+        await c.query(
+          `SELECT r.*,e.sequence::text AS position FROM ${A}.requests r
+        JOIN ${A}.events e ON e.org_id=r.org_id AND e.approval_id=r.id AND e.object_version=1
+        JOIN ${P}.resources p ON p.org_id=r.org_id AND p.id=r.resource_id
+        WHERE r.org_id=$1 AND e.sequence<=$2::bigint AND ($3::bigint IS NULL OR e.sequence<$3::bigint)
+        AND (($4='mine' AND r.requester_id=$5) OR ($4='review' AND r.requester_id<>$5))
+        AND ($6='all' OR ($6='expired' AND r.state IN ('pending','approved','issued') AND r.expires_at<=$7::timestamptz)
+          OR (r.state=$6 AND (r.state NOT IN ('pending','approved','issued') OR r.expires_at>$7::timestamptz)))
+        AND p.status='active'
+        AND (p.visibility='organization' OR p.owner_human_id=$5
+          OR EXISTS(SELECT 1 FROM ${P}.role_bindings b WHERE b.org_id=p.org_id AND b.resource_id=p.id AND b.human_id=$5
+            AND b.revoked_at IS NULL AND b.valid_from<=$7::timestamptz AND (b.expires_at IS NULL OR b.expires_at>$7::timestamptz))
+          OR EXISTS(SELECT 1 FROM ${P}.resource_grants g WHERE g.org_id=p.org_id AND g.resource_id=p.id AND g.human_id=$5
+            AND g.action='resource.read' AND g.effect='allow' AND g.revoked_at IS NULL AND g.valid_from<=$7::timestamptz AND (g.expires_at IS NULL OR g.expires_at>$7::timestamptz)))
+        AND NOT EXISTS(SELECT 1 FROM ${P}.resource_grants g WHERE g.org_id=p.org_id AND g.resource_id=p.id AND g.human_id=$5
+          AND g.action='resource.read' AND g.effect='deny' AND g.revoked_at IS NULL AND g.valid_from<=$7::timestamptz AND (g.expires_at IS NULL OR g.expires_at>$7::timestamptz))
+        ORDER BY e.sequence DESC LIMIT $8`,
+          [
+            s.org_id,
+            head,
+            position?.before ?? null,
+            q.lane,
+            ctx.actor.human,
+            q.state,
+            new Date(observed).toISOString(),
+            q.limit + 1,
+          ],
+        )
+      ).rows;
+      // Lock resources in deterministic order after the existing stream lock. Direct rename cannot change them mid-page.
+      const resources = (
+        await c.query(
+          `SELECT * FROM ${P}.resources WHERE org_id=$1 AND id=ANY($2::uuid[]) ORDER BY id FOR SHARE`,
+          [
+            s.org_id,
+            [...new Set(rows.map((r) => str(r, "resource_id")))].sort(),
+          ],
+        )
+      ).rows;
+      let deadline = ctx.sessionDeadline;
+      const entries: ApprovalInboxEntry[] = [];
+      for (const r of rows) {
+        const resource = resources.find(
+          (p) => p["id"] === r["resource_id"],
+        ) as unknown as PolicyResource | undefined;
+        if (!resource || !validResource(resource))
+          throw new ApprovalError("unavailable");
+        const item = { ...ctx, row: r, resource };
+        await this.visible(item);
+        const read = (await this.decisions(item, ctx.actor)).read;
+        if (read.outcome !== "allow")
+          throw new ApprovalError("unavailable_resource");
+        deadline = Math.min(deadline, Date.parse(read.expires_at));
+        const b = this.stored(r),
+          state = str(r, "state") as ApprovalInboxEntry["state"];
+        if (!validApprovalCursor(r["position"]))
+          throw new ApprovalError("unavailable");
+        entries.push({
+          id: str(r, "id"),
+          resource_id: b.resource_id,
+          requester_id: b.requester_id,
+          requested_name: b.display_name,
+          state,
+          object_version: num(r, "object_version"),
+          resource_version: b.resource_version,
+          expires_at: new Date(ms(r, "expires_at")).toISOString(),
+          expired:
+            ["pending", "approved", "issued"].includes(state) &&
+            ms(r, "expires_at") <= observed,
+        });
+      }
+      await this.session(c, s);
+      if ((await now(c)) >= deadline)
+        throw new ApprovalError("unavailable_resource");
+      const last = rows[q.limit - 1];
+      const cursor =
+        entries.length > q.limit && last
+          ? this.inboxCursor.encode(
+              {
+                head,
+                before: str(last, "position"),
+                started: position?.started ?? observed,
+              },
+              binding,
+            )
+          : null;
+      return {
+        schema_version: "1.0.0",
+        org_id: s.org_id,
+        lane: q.lane,
+        state_filter: q.state,
+        observed_at: new Date(observed).toISOString(),
+        authorization: false,
+        consistency: "creation-boundary-current-visibility",
+        entries: entries.slice(0, q.limit),
+        next_cursor: cursor,
+      };
     });
   }
   async events(s: PolicyScope, after: string, limit: number) {
