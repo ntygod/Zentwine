@@ -272,7 +272,10 @@ export class RuntimeEventObserver {
     if (event.type === "usage.reported")
       this.#measurements.add(event.payload.measurement_id);
     if (event.type === "artifact.produced")
-      this.#artifacts.set(event.payload.artifact.artifact_id, event.payload.artifact);
+      this.#artifacts.set(
+        event.payload.artifact.artifact_id,
+        event.payload.artifact,
+      );
     this.#last = sequence;
     if (this.#last >= this.#gap) this.#gap = 0n;
     this.#snapshot = Object.freeze({
@@ -308,7 +311,10 @@ export class RuntimeEventObserver {
     switch (event.type) {
       case "run.started":
         return state === "awaiting_start"
-          ? { reported_state: "running", observed_model: event.payload.observed_model }
+          ? {
+              reported_state: "running",
+              observed_model: event.payload.observed_model,
+            }
           : null;
       case "run.waiting_input":
         return state === "running"
@@ -333,7 +339,10 @@ export class RuntimeEventObserver {
           : null;
       case "run.succeeded":
         return state === "running"
-          ? { reported_state: "succeeded", manifest_id: event.payload.manifest_id }
+          ? {
+              reported_state: "succeeded",
+              manifest_id: event.payload.manifest_id,
+            }
           : null;
       case "run.failed":
         return (this.#snapshot.observed_model === null) ===
@@ -361,7 +370,8 @@ export class RuntimeEventObserver {
         if (state !== "running" && state !== "waiting_input") return null;
         const ref = event.payload.artifact;
         const previous = this.#artifacts.get(ref.artifact_id);
-        if (previous) return JSON.stringify(previous) === JSON.stringify(ref) ? {} : null;
+        if (previous)
+          return JSON.stringify(previous) === JSON.stringify(ref) ? {} : null;
         return this.#artifacts.size < 64 ? {} : null;
       }
       case "summary.available":
