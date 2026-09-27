@@ -33,37 +33,64 @@ export function wireString(
   const fullPattern = `${pattern}(?![\\s\\S])`;
   const expression = new RegExp(fullPattern, "u");
   return {
-    schema: { type: "string", minLength: minimum, maxLength: maximum, pattern: fullPattern },
+    schema: {
+      type: "string",
+      minLength: minimum,
+      maxLength: maximum,
+      pattern: fullPattern,
+    },
     read(value) {
       if (
         typeof value !== "string" ||
         [...value].length < minimum ||
         [...value].length > maximum ||
         !expression.test(value)
-      ) invalidWire();
+      )
+        invalidWire();
       return value;
     },
   };
 }
-export function wireInteger(minimum: number, maximum: number): WireCodec<number> {
+export function wireInteger(
+  minimum: number,
+  maximum: number,
+): WireCodec<number> {
   return {
     schema: { type: "integer", minimum, maximum },
     read(value) {
-      if (typeof value !== "number" || !Number.isSafeInteger(value) ||
-          value < minimum || value > maximum) invalidWire();
+      if (
+        typeof value !== "number" ||
+        !Number.isSafeInteger(value) ||
+        value < minimum ||
+        value > maximum
+      )
+        invalidWire();
       return value;
     },
   };
 }
 export function wireArray<C extends WireCodec<unknown>>(
-  item: C, maximum: number, minimum = 0,
+  item: C,
+  maximum: number,
+  minimum = 0,
 ): WireCodec<readonly WireValue<C>[]> {
   return {
-    schema: { type: "array", minItems: minimum, maxItems: maximum, items: item.schema },
+    schema: {
+      type: "array",
+      minItems: minimum,
+      maxItems: maximum,
+      items: item.schema,
+    },
     read(value) {
-      if (!Array.isArray(value) || value.length < minimum || value.length > maximum)
+      if (
+        !Array.isArray(value) ||
+        value.length < minimum ||
+        value.length > maximum
+      )
         invalidWire();
-      return Object.freeze(value.map((entry) => item.read(entry))) as readonly WireValue<C>[];
+      return Object.freeze(
+        value.map((entry) => item.read(entry)),
+      ) as readonly WireValue<C>[];
     },
   };
 }
@@ -73,15 +100,28 @@ export function wireObject<const P extends Record<string, WireCodec<unknown>>>(
   const keys = Object.keys(properties);
   return {
     schema: {
-      type: "object", additionalProperties: false, required: keys,
-      properties: Object.fromEntries(keys.map((key) => [key, properties[key]!.schema])),
+      type: "object",
+      additionalProperties: false,
+      required: keys,
+      properties: Object.fromEntries(
+        keys.map((key) => [key, properties[key]!.schema]),
+      ),
     },
     read(value) {
-      if (!value || typeof value !== "object" || Array.isArray(value) ||
-          Object.keys(value).length !== keys.length ||
-          Object.keys(value).some((key) => !keys.includes(key))) invalidWire();
+      if (
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value) ||
+        Object.keys(value).length !== keys.length ||
+        Object.keys(value).some((key) => !keys.includes(key))
+      )
+        invalidWire();
       const record = value as Record<string, unknown>;
-      return Object.freeze(Object.fromEntries(keys.map((key) => [key, properties[key]!.read(record[key])]))) as {
+      return Object.freeze(
+        Object.fromEntries(
+          keys.map((key) => [key, properties[key]!.read(record[key])]),
+        ),
+      ) as {
         readonly [K in keyof P]: WireValue<P[K]>;
       };
     },
@@ -94,14 +134,20 @@ export function wireUnion<const C extends readonly WireCodec<unknown>[]>(
     schema: { oneOf: choices.map((choice) => choice.schema) },
     read(value) {
       for (const choice of choices) {
-        try { return choice.read(value) as WireValue<C[number]>; }
-        catch { /* Every public failure uses the same fixed message. */ }
+        try {
+          return choice.read(value) as WireValue<C[number]>;
+        } catch {
+          /* Every public failure uses the same fixed message. */
+        }
       }
       return invalidWire();
     },
   };
 }
-export function wireRefine<T>(codec: WireCodec<T>, accepts: (value: T) => boolean): WireCodec<T> {
+export function wireRefine<T>(
+  codec: WireCodec<T>,
+  accepts: (value: T) => boolean,
+): WireCodec<T> {
   return {
     schema: codec.schema,
     read(value) {
@@ -113,7 +159,11 @@ export function wireRefine<T>(codec: WireCodec<T>, accepts: (value: T) => boolea
 }
 
 /** Limits apply to normalized JSON bytes, including property names and punctuation. */
-export const RUNTIME_WIRE_LIMITS = Object.freeze({ bytes: 262144, nodes: 8192, depth: 16 });
+export const RUNTIME_WIRE_LIMITS = Object.freeze({
+  bytes: 262144,
+  nodes: 8192,
+  depth: 16,
+});
 function snapshotWire(value: unknown): unknown {
   let bytes = 0;
   let nodes = 0;
@@ -137,31 +187,56 @@ function snapshotWire(value: unknown): unknown {
     charge(encoder.encode(JSON.stringify(s)).length);
   };
   const copy = (v: unknown, depth: number): unknown => {
-    if (++nodes > RUNTIME_WIRE_LIMITS.nodes || depth > RUNTIME_WIRE_LIMITS.depth) invalidWire();
-    if (typeof v === "string") { text(v); return v; }
-    if (v === null || typeof v === "boolean") { charge(v === null ? 4 : v ? 4 : 5); return v; }
+    if (
+      ++nodes > RUNTIME_WIRE_LIMITS.nodes ||
+      depth > RUNTIME_WIRE_LIMITS.depth
+    )
+      invalidWire();
+    if (typeof v === "string") {
+      text(v);
+      return v;
+    }
+    if (v === null || typeof v === "boolean") {
+      charge(v === null ? 4 : v ? 4 : 5);
+      return v;
+    }
     if (typeof v === "number") {
       if (!Number.isFinite(v) || Object.is(v, -0)) invalidWire();
-      charge(JSON.stringify(v).length); return v;
+      charge(JSON.stringify(v).length);
+      return v;
     }
     if (!v || typeof v !== "object" || active.has(v)) invalidWire();
     const array = Array.isArray(v);
-    if (Object.getPrototypeOf(v) !== (array ? Array.prototype : Object.prototype) &&
-        !(Object.getPrototypeOf(v) === null && !array)) invalidWire();
+    if (
+      Object.getPrototypeOf(v) !==
+        (array ? Array.prototype : Object.prototype) &&
+      !(Object.getPrototypeOf(v) === null && !array)
+    )
+      invalidWire();
     const keys = Reflect.ownKeys(v);
-    if (keys.length > RUNTIME_WIRE_LIMITS.nodes || keys.some((key) => typeof key !== "string")) invalidWire();
+    if (
+      keys.length > RUNTIME_WIRE_LIMITS.nodes ||
+      keys.some((key) => typeof key !== "string")
+    )
+      invalidWire();
     active.add(v);
     charge(2);
     const readOwn = (key: string): unknown => {
       const descriptor = Object.getOwnPropertyDescriptor(v, key);
-      if (!descriptor || !("value" in descriptor) || !descriptor.enumerable) invalidWire();
+      if (!descriptor || !("value" in descriptor) || !descriptor.enumerable)
+        invalidWire();
       return copy(descriptor.value, depth + 1);
     };
     let result: unknown;
     if (array) {
-      const length = Object.getOwnPropertyDescriptor(v, "length")?.value as unknown;
-      if (typeof length !== "number" || length > RUNTIME_WIRE_LIMITS.nodes ||
-          keys.length !== length + 1) invalidWire();
+      const length = Object.getOwnPropertyDescriptor(v, "length")
+        ?.value as unknown;
+      if (
+        typeof length !== "number" ||
+        length > RUNTIME_WIRE_LIMITS.nodes ||
+        keys.length !== length + 1
+      )
+        invalidWire();
       const entries: unknown[] = [];
       for (let i = 0; i < length; i++) {
         if (i) charge(1);
@@ -172,7 +247,8 @@ function snapshotWire(value: unknown): unknown {
       const entries: [string, unknown][] = [];
       for (const [i, key] of (keys as string[]).entries()) {
         if (i) charge(1);
-        text(key); charge(1);
+        text(key);
+        charge(1);
         entries.push([key, readOwn(key)]);
       }
       result = Object.freeze(Object.fromEntries(entries));
@@ -184,6 +260,9 @@ function snapshotWire(value: unknown): unknown {
 }
 /** Snapshot first; ordinary getters/toJSON never execute. Not a sandbox for hostile Proxies. */
 export function parseWire<T>(codec: WireCodec<T>, value: unknown): T {
-  try { return codec.read(snapshotWire(value)); }
-  catch { return invalidWire(); }
+  try {
+    return codec.read(snapshotWire(value));
+  } catch {
+    return invalidWire();
+  }
 }

@@ -33,10 +33,6 @@ class RuntimeProtocolSchemaTests(unittest.TestCase):
             with self.subTest(case=case["name"]):
                 self.assertEqual(self.validator.is_valid(case["value"]), case["schemaValid"])
 
-    def test_frozen_formatter_diagnostics_are_read_only(self):
-        # Provisional branch-only diagnostic, removed before final acceptance.
-        subprocess.run(["node", "scripts/runtime-format-diagnostics.mjs"], cwd=ROOT, check=True, timeout=30)
-
     def test_every_required_field_is_structurally_required(self):
         for kind in ("start_run", "runtime_event", "artifact_manifest", "capability_report"):
             sample = next(c["value"] for c in self.cases if c["kind"] == kind and c["schemaValid"])
