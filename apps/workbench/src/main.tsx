@@ -1,3 +1,5 @@
+import { ApprovalInboxPage } from "./approval-inbox.js";
+import { parseApprovalInboxPath } from "@zentwine/contracts";
 import { CatalogApprovalPage } from "./catalog-approval.js";
 import { parseCatalogApprovalPath } from "@zentwine/contracts";
 import { TeamWorkbench } from "./team-workbench.js";
@@ -240,6 +242,7 @@ function Workbench() {
     </div>
   );
 }
+const inboxRoute = parseApprovalInboxPath(window.location.pathname);
 const approvalRoute = parseCatalogApprovalPath(window.location.pathname);
 const teamRoute = parseOrganizationWorkbenchPath(window.location.pathname);
 const objectRoute = parseResourceObjectPath(window.location.pathname);
@@ -249,7 +252,9 @@ createRoot(root).render(
   <StrictMode>
     <ThemeProvider>
       <AppBoundary>
-        {approvalRoute ? (
+        {inboxRoute ? (
+          <ApprovalInboxPage {...inboxRoute} />
+        ) : approvalRoute ? (
           <CatalogApprovalPage route={approvalRoute} />
         ) : objectRoute ? (
           <TeamWorkbench

@@ -107,3 +107,5 @@ export * from "./object-page.js";
 export * from "./object-layout.js";
 
 export * from "./catalog-approval.js";
+
+export * from "./approval-inbox.js";

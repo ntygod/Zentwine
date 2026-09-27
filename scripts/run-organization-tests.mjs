@@ -15,6 +15,7 @@ try {
           "tests/organizations/navigation-browser.test.mjs",
           "tests/organizations/object-browser.test.mjs",
           "tests/organizations/catalog-approval-browser.test.mjs",
+          "tests/organizations/approval-inbox-browser.test.mjs",
         ]
       : [
           "tests/organizations/lifecycle.test.mjs",
