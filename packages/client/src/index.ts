@@ -84,3 +84,15 @@ export type {
   RuntimeStreamFault,
   RuntimeStreamSnapshot,
 } from "./runtime-stream.js";
+
+export {
+  RuntimeInputArtifactReader,
+  RUNTIME_INPUT_ARTIFACT_LIMITS,
+} from "./runtime-input-artifact.js";
+export type {
+  RuntimeInputArtifactLimits,
+  RuntimeInputArtifactBinding,
+  RuntimeInputArtifactFault,
+  RuntimeInputArtifactSnapshot,
+  RuntimeInputArtifactDelivery,
+} from "./runtime-input-artifact.js";
