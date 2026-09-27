@@ -72,3 +72,5 @@ export * from "./object-layout.js";
 export * from "./catalog-approval.js";
 
 export * from "./approval-inbox.js";
+
+export * from "./runtime-observer.js";
