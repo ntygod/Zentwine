@@ -24,7 +24,7 @@ node scripts/export-runtime-protocol.mjs
 
 StartRun保留任务、基线、上下文、策略、预算和租约引用；宿主还需验证数据库存在性、当前组织/主体授权、撤权、版本、租约、预算与能力报告真实性/新鲜度。`inspectRuntimeCompatibility`只匹配声明，`compatible:true`仍然`authorization:false`。报告当前绑定供应商和运行时版本，并不认证某个实际模型或环境。未通过宿主检查不得创建Run/Attempt或调用外部工具。
 
-读取事件用`bindRuntimeEvent(start, event)`核对org/run/attempt与证据来源，收集产物用`bindArtifactManifest`。单事件合法不代表顺序合法；不得把重复/乱序/终态后的事件直接更新业务状态。事件序列是正的十进制bigint字符串，不能转换成可能损失精度的Number。event_id去重、状态机与跨实例一致性仍须单独实现。
+读取事件用`bindRuntimeEvent(start, event)`核对org/run/attempt与证据来源，收集产物用`bindArtifactManifest`。单事件合法不代表顺序合法；不得把重复/乱序/终态后的事件直接更新业务状态。事件序列是正的十进制bigint字符串，不能转换成可能损失精度的Number。实例内消费规则见下方A2指南；跨实例一致性仍须单独实现。
 
 `sameRuntimeRunInput`忽略的只有attempt_id；对象属性顺序被codec规范，数组顺序保留。输入、权限/策略、预算或模型变化返回不相同，调用者必须拒绝复用原Run或走显式新Run流程；true也不授权重试。未知提交结果应先inspect/Operation对账，不自动重发。
 
@@ -40,4 +40,8 @@ run.cancelled中的回执/范围是适配器声明，不证明进程停止；too
 
 ## 尚未交付
 
-无存储、传输、订阅恢复、宿主、幂等执行、事件状态机、自动重试、Operation对账或真实供应商适配；不替代ZT03-02/Issue #35审查。原FakeRuntime和已有bootstrap继续保留旧限定语义。完整功能与真实异构验收见父Issue #46及ZT12后续工作包。
+无存储、传输、订阅恢复、宿主、幂等执行、持久事件状态机、自动重试、Operation对账或真实供应商适配；不替代ZT03-02/Issue #35审查。原FakeRuntime和已有bootstrap继续保留旧限定语义。完整功能与真实异构验收见父Issue #46及ZT12后续工作包。
+
+## 后续只读消费者
+
+[RuntimeEventObserver](runtime-observer.md)由ZT12-01-A2 / PR #50实现，提供同一协议的实例内连续前缀、重复冲突、状态及未知观察规则；不改变本A阶段历史验收，也不代表持久事件状态机、宿主或真实适配器已完成。完整CI/合并状态见该PR。
