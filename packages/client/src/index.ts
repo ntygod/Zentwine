@@ -74,3 +74,6 @@ export * from "./catalog-approval.js";
 export * from "./approval-inbox.js";
 
 export * from "./runtime-observer.js";
+
+export { RuntimeEventStreamReader, RUNTIME_STREAM_LIMITS } from "./runtime-stream.js";
+export type { RuntimeStreamLimits, RuntimeStreamFault, RuntimeStreamSnapshot } from "./runtime-stream.js";
