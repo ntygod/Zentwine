@@ -4,9 +4,12 @@ import { RUNTIME_WIRE_LIMITS } from "@zentwine/contracts";
 export function readRuntimeStreamJson(text: string): unknown {
   let position = 0;
   let nodes = 0;
-  const fail = (): never => { throw new TypeError("Invalid runtime event frame"); };
+  const fail = (): never => {
+    throw new TypeError("Invalid runtime event frame");
+  };
   const space = () => {
-    while (position < text.length && /[\x20\t\r\n]/u.test(text[position]!)) position++;
+    while (position < text.length && /[\x20\t\r\n]/u.test(text[position]!))
+      position++;
   };
   const string = (): string => {
     const start = position;
@@ -20,7 +23,11 @@ export function readRuntimeStreamJson(text: string): unknown {
   };
   const number = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
   const read = (depth: number): unknown => {
-    if (++nodes > RUNTIME_WIRE_LIMITS.nodes || depth > RUNTIME_WIRE_LIMITS.depth) fail();
+    if (
+      ++nodes > RUNTIME_WIRE_LIMITS.nodes ||
+      depth > RUNTIME_WIRE_LIMITS.depth
+    )
+      fail();
     space();
     const c = text[position];
     if (c === '"') return string();
@@ -29,7 +36,10 @@ export function readRuntimeStreamJson(text: string): unknown {
       const object: Record<string, unknown> = Object.create(null);
       const keys = new Set<string>();
       space();
-      if (text[position] === "}") { position++; return object; }
+      if (text[position] === "}") {
+        position++;
+        return object;
+      }
       for (;;) {
         space();
         const key = string();
@@ -48,7 +58,10 @@ export function readRuntimeStreamJson(text: string): unknown {
       position++;
       const array: unknown[] = [];
       space();
-      if (text[position] === "]") { position++; return array; }
+      if (text[position] === "]") {
+        position++;
+        return array;
+      }
       for (;;) {
         array.push(read(depth + 1));
         space();
@@ -57,8 +70,15 @@ export function readRuntimeStreamJson(text: string): unknown {
         if (delimiter !== ",") fail();
       }
     }
-    for (const [literal, value] of [["true", true], ["false", false], ["null", null]] as const) {
-      if (text.startsWith(literal, position)) { position += literal.length; return value; }
+    for (const [literal, value] of [
+      ["true", true],
+      ["false", false],
+      ["null", null],
+    ] as const) {
+      if (text.startsWith(literal, position)) {
+        position += literal.length;
+        return value;
+      }
     }
     number.lastIndex = position;
     const matched = number.exec(text);
@@ -66,7 +86,12 @@ export function readRuntimeStreamJson(text: string): unknown {
     position = number.lastIndex;
     const value = Number(matched[0]);
     // Do not round a non-integer JSON token into an acceptable integer.
-    if (!Number.isSafeInteger(value) || Object.is(value, -0) || !/^-?(0|[1-9][0-9]*)$/u.test(matched[0])) fail();
+    if (
+      !Number.isSafeInteger(value) ||
+      Object.is(value, -0) ||
+      !/^-?(0|[1-9][0-9]*)$/u.test(matched[0])
+    )
+      fail();
     return value;
   };
   const value = read(0);
