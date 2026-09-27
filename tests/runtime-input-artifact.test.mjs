@@ -11,7 +11,8 @@ import { fixture } from "./fixtures/runtime-wire-v1.mjs";
 
 const encode = (text) => new TextEncoder().encode(text);
 const abc = encode("abc");
-const abcHash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+const abcHash =
+  "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const uid = "10000000-0000-4000-8000-000000000001";
 function inputs(bytes = abc, digest = hash(bytes)) {
@@ -43,7 +44,12 @@ function stream(chunks, hooks = {}) {
     { highWaterMark: 0 },
   );
 }
-async function read(bytes = abc, chunks = [bytes], input = inputs(bytes), limits) {
+async function read(
+  bytes = abc,
+  chunks = [bytes],
+  input = inputs(bytes),
+  limits,
+) {
   const reader = make(input, limits);
   const source = stream(chunks);
   const result = await reader.read(source);
@@ -94,7 +100,8 @@ test("input artifact: independent abc SHA-256 golden value and one-time byte del
 });
 test("input artifact: empty byte artifact has the independent SHA-256 empty digest", async () => {
   const bytes = new Uint8Array(0);
-  const emptyHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  const emptyHash =
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   const { reader, result } = await read(bytes, [], inputs(bytes, emptyHash));
   assert.equal(result.status, "matched");
   assert.equal(reader.takeBytes().bytes.length, 0);
@@ -105,12 +112,18 @@ for (const [name, bytes] of [
 ]) {
   test(`input artifact: all two-block ${name} splits preserve exact bytes`, async () => {
     for (let i = 0; i <= bytes.length; i++) {
-      const { reader, result } = await read(bytes, [bytes.slice(0, i), bytes.slice(i)]);
+      const { reader, result } = await read(bytes, [
+        bytes.slice(0, i),
+        bytes.slice(i),
+      ]);
       assert.equal(result.status, "matched", `split ${i}`);
       assert.equal(result.received_bytes, bytes.length);
       assert.deepEqual(reader.takeBytes().bytes, bytes);
     }
-    const { reader } = await read(bytes, Array.from(bytes, (b) => Uint8Array.of(b)));
+    const { reader } = await read(
+      bytes,
+      Array.from(bytes, (b) => Uint8Array.of(b)),
+    );
     assert.deepEqual(reader.takeBytes().bytes, bytes);
   });
 }
@@ -144,22 +157,103 @@ test("input artifact: consumer and manifest are snapshotted before caller mutati
   assert.equal(reader.takeBytes().binding.artifact.ref.sha256, abcHash);
 });
 for (const [name, change] of [
-  ["artifact selection", (x) => { x.id = uid; }],
-  ["missing consumer input", (x) => { x.consumer.input_artifacts = []; }],
-  ["missing manifest entry", (x) => { x.manifest.artifacts = []; }],
-  ["revision", (x) => { x.consumer.input_artifacts[0].revision++; }],
-  ["hash", (x) => { x.consumer.input_artifacts[0].sha256 = "0".repeat(64); }],
-  ["producer run", (x) => { x.consumer.input_artifacts[0].producer.run_id = uid; }],
-  ["producer attempt", (x) => { x.consumer.input_artifacts[0].producer.attempt_id = uid; }],
-  ["organization", (x) => { x.consumer.org_id = uid; x.consumer.input_artifacts[0].producer.org_id = uid; }],
-  ["synthetic as provider", (x) => { x.consumer.execution_kind = "provider"; }],
-  ["provider as synthetic", (x) => { x.manifest.evidence_kind = "adapter_report"; }],
-  ["self-produced input", (x) => { x.consumer.input_artifacts[0].producer.run_id = x.consumer.run_id; }],
-  ["manifest envelope mismatch", (x) => { x.manifest.attempt_id = uid; }],
-  ["already verified manifest", (x) => { x.manifest.artifacts[0].verification = "verified"; }],
-  ["extra manifest field", (x) => { x.manifest.secret = "not-returned"; }],
-  ["duplicate manifest artifact", (x) => { x.manifest.artifacts.push(structuredClone(x.manifest.artifacts[0])); }],
-  ["boxed artifact identifier", (x) => { x.id = new String(x.id); }],
+  [
+    "artifact selection",
+    (x) => {
+      x.id = uid;
+    },
+  ],
+  [
+    "missing consumer input",
+    (x) => {
+      x.consumer.input_artifacts = [];
+    },
+  ],
+  [
+    "missing manifest entry",
+    (x) => {
+      x.manifest.artifacts = [];
+    },
+  ],
+  [
+    "revision",
+    (x) => {
+      x.consumer.input_artifacts[0].revision++;
+    },
+  ],
+  [
+    "hash",
+    (x) => {
+      x.consumer.input_artifacts[0].sha256 = "0".repeat(64);
+    },
+  ],
+  [
+    "producer run",
+    (x) => {
+      x.consumer.input_artifacts[0].producer.run_id = uid;
+    },
+  ],
+  [
+    "producer attempt",
+    (x) => {
+      x.consumer.input_artifacts[0].producer.attempt_id = uid;
+    },
+  ],
+  [
+    "organization",
+    (x) => {
+      x.consumer.org_id = uid;
+      x.consumer.input_artifacts[0].producer.org_id = uid;
+    },
+  ],
+  [
+    "synthetic as provider",
+    (x) => {
+      x.consumer.execution_kind = "provider";
+    },
+  ],
+  [
+    "provider as synthetic",
+    (x) => {
+      x.manifest.evidence_kind = "adapter_report";
+    },
+  ],
+  [
+    "self-produced input",
+    (x) => {
+      x.consumer.input_artifacts[0].producer.run_id = x.consumer.run_id;
+    },
+  ],
+  [
+    "manifest envelope mismatch",
+    (x) => {
+      x.manifest.attempt_id = uid;
+    },
+  ],
+  [
+    "already verified manifest",
+    (x) => {
+      x.manifest.artifacts[0].verification = "verified";
+    },
+  ],
+  [
+    "extra manifest field",
+    (x) => {
+      x.manifest.secret = "not-returned";
+    },
+  ],
+  [
+    "duplicate manifest artifact",
+    (x) => {
+      x.manifest.artifacts.push(structuredClone(x.manifest.artifacts[0]));
+    },
+  ],
+  [
+    "boxed artifact identifier",
+    (x) => {
+      x.id = new String(x.id);
+    },
+  ],
 ]) {
   test(`input artifact: reject mismatched ${name} before reading any source`, () => {
     const input = inputs();
@@ -179,12 +273,30 @@ for (const field of ["consumer", "manifest"]) {
   test(`input artifact: ${field} accessors are rejected without invocation`, () => {
     const input = inputs();
     let calls = 0;
-    Object.defineProperty(input[field], "schema_version", { enumerable: true, get() { calls++; return "1.0.0"; } });
+    Object.defineProperty(input[field], "schema_version", {
+      enumerable: true,
+      get() {
+        calls++;
+        return "1.0.0";
+      },
+    });
     assert.throws(() => make(input), TypeError);
     assert.equal(calls, 0);
   });
 }
-for (const invalid of [null, 0, {}, { max_bytes: 1 }, budget({ max_bytes: 0 }), budget({ max_chunks: 0 }), budget({ max_bytes: Infinity }), budget({ max_chunks: 1.5 }), budget({ max_bytes: 4194305 }), budget({ max_chunks: 65537 }), { ...budget({}), extra: 1 }]) {
+for (const invalid of [
+  null,
+  0,
+  {},
+  { max_bytes: 1 },
+  budget({ max_bytes: 0 }),
+  budget({ max_chunks: 0 }),
+  budget({ max_bytes: Infinity }),
+  budget({ max_chunks: 1.5 }),
+  budget({ max_bytes: 4194305 }),
+  budget({ max_chunks: 65537 }),
+  { ...budget({}), extra: 1 },
+]) {
   test(`input artifact: reject invalid bounded configuration ${JSON.stringify(invalid)}`, () => {
     assert.throws(() => make(inputs(), invalid), TypeError);
   });
@@ -192,7 +304,13 @@ for (const invalid of [null, 0, {}, { max_bytes: 1 }, budget({ max_bytes: 0 }), 
 test("input artifact: limit getters are not evaluated", () => {
   let calls = 0;
   const limits = budget({});
-  Object.defineProperty(limits, "max_bytes", { enumerable: true, get() { calls++; return 3; } });
+  Object.defineProperty(limits, "max_bytes", {
+    enumerable: true,
+    get() {
+      calls++;
+      return 3;
+    },
+  });
   assert.throws(() => make(inputs(), limits), TypeError);
   assert.equal(calls, 0);
 });
@@ -200,7 +318,12 @@ test("input artifact: declared size above local budget rejects before allocation
   assert.throws(() => make(inputs(), budget({ max_bytes: 2 })), TypeError);
 });
 test("input artifact: exact reduced byte and chunk budget succeeds", async () => {
-  const { reader, result } = await read(abc, [abc], inputs(), budget({ max_bytes: 3, max_chunks: 1 }));
+  const { reader, result } = await read(
+    abc,
+    [abc],
+    inputs(),
+    budget({ max_bytes: 3, max_chunks: 1 }),
+  );
   assert.equal(result.status, "matched");
   assert.deepEqual(reader.takeBytes().bytes, abc);
 });
@@ -212,13 +335,23 @@ test("input artifact: exact default maximum payload succeeds", async () => {
   assert.deepEqual(reader.takeBytes().bytes, bytes);
 });
 test("input artifact: empty chunks are charged and exact count can finish", async () => {
-  const { reader, result } = await read(abc, [new Uint8Array(), abc], inputs(), budget({ max_chunks: 2 }));
+  const { reader, result } = await read(
+    abc,
+    [new Uint8Array(), abc],
+    inputs(),
+    budget({ max_chunks: 2 }),
+  );
   assert.equal(result.status, "matched");
   assert.equal(result.received_chunks, 2);
   reader.close();
 });
 test("input artifact: one extra empty chunk fails rather than enabling unbounded polling", async () => {
-  const { reader, result } = await read(abc, [abc, new Uint8Array()], inputs(), budget({ max_chunks: 1 }));
+  const { reader, result } = await read(
+    abc,
+    [abc, new Uint8Array()],
+    inputs(),
+    budget({ max_chunks: 1 }),
+  );
   denied(reader, result, "chunk_limit");
 });
 for (const [name, chunks, fault] of [
@@ -228,7 +361,11 @@ for (const [name, chunks, fault] of [
   ["same-size corrupted bytes", [encode("abd")], "digest_mismatch"],
   ["string chunk", ["abc"], "invalid_chunk"],
   ["wrong typed array", [new Uint16Array([97, 98, 99])], "invalid_chunk"],
-  ["shared byte buffer", [new Uint8Array(new SharedArrayBuffer(3))], "invalid_chunk"],
+  [
+    "shared byte buffer",
+    [new Uint8Array(new SharedArrayBuffer(3))],
+    "invalid_chunk",
+  ],
   ["plain byte-shaped object", [{ 0: 97, length: 1 }], "invalid_chunk"],
 ]) {
   test(`input artifact: ${name} never exposes partial content`, async () => {
@@ -240,7 +377,12 @@ test("input artifact: byte-chunk property getters are not called", async () => {
   const bytes = abc.slice();
   let calls = 0;
   for (const name of ["buffer", "byteLength", "byteOffset", "length"])
-    Object.defineProperty(bytes, name, { get() { calls++; throw new Error("no"); } });
+    Object.defineProperty(bytes, name, {
+      get() {
+        calls++;
+        throw new Error("no");
+      },
+    });
   const { reader, result } = await read(abc, [bytes]);
   assert.equal(result.status, "matched");
   assert.equal(calls, 0);
@@ -254,7 +396,11 @@ test("input artifact: detached buffer is rejected", async () => {
 });
 test("input artifact: source errors have fixed local fault and no raw message", async () => {
   const reader = make();
-  const source = stream([], { pull(c) { c.error(new Error("private-source-message")); } });
+  const source = stream([], {
+    pull(c) {
+      c.error(new Error("private-source-message"));
+    },
+  });
   const result = await reader.read(source);
   denied(reader, result, "transport_lost");
   assert.ok(!JSON.stringify(result).includes("private-source-message"));
@@ -262,7 +408,12 @@ test("input artifact: source errors have fixed local fault and no raw message", 
 });
 test("input artifact: byte count alone cannot finish without EOF", async () => {
   let controller;
-  const source = stream([], { start(c) { controller = c; }, pull() {} });
+  const source = stream([], {
+    start(c) {
+      controller = c;
+    },
+    pull() {},
+  });
   const reader = make();
   const pending = reader.read(source);
   controller.enqueue(abc);
@@ -317,7 +468,15 @@ test("input artifact: pre-abort does not touch the source or expose abort reason
 for (const mode of ["close", "abort", "rejecting_cancel"]) {
   test(`input artifact: ${mode} interrupts a pending read and releases its lock`, async () => {
     let cancellations = 0;
-    const source = stream([], { pull() {}, cancel() { cancellations++; return mode === "rejecting_cancel" ? Promise.reject(new Error("hidden")) : new Promise(() => {}); } });
+    const source = stream([], {
+      pull() {},
+      cancel() {
+        cancellations++;
+        return mode === "rejecting_cancel"
+          ? Promise.reject(new Error("hidden"))
+          : new Promise(() => {});
+      },
+    });
     const reader = make();
     const controller = new AbortController();
     const pending = reader.read(source, controller.signal);
@@ -336,7 +495,10 @@ for (const mode of ["close", "abort", "rejecting_cancel"]) {
 test("input artifact: cancellation stays active after digest match until bytes are taken", async () => {
   const reader = make();
   const controller = new AbortController();
-  assert.equal((await reader.read(stream([abc]), controller.signal)).status, "matched");
+  assert.equal(
+    (await reader.read(stream([abc]), controller.signal)).status,
+    "matched",
+  );
   controller.abort();
   assert.equal(reader.getSnapshot().status, "closed");
   assert.throws(() => reader.takeBytes(), /not available/);
@@ -359,7 +521,9 @@ for (const outcome of ["resolve", "reject"]) {
     let captured;
     t.mock.method(crypto.subtle, "digest", (_algorithm, bytes) => {
       captured = new Uint8Array(bytes);
-      return new Promise((resolve, reject) => { settle = outcome === "resolve" ? resolve : reject; });
+      return new Promise((resolve, reject) => {
+        settle = outcome === "resolve" ? resolve : reject;
+      });
     });
     const reader = make();
     const source = stream([abc]);
@@ -371,14 +535,20 @@ for (const outcome of ["resolve", "reject"]) {
     assert.equal((await pending).status, "closed");
     assert.equal(source.locked, false);
     assert.deepEqual(captured, new Uint8Array(3));
-    settle(outcome === "resolve" ? Uint8Array.from(Buffer.from(abcHash, "hex")).buffer : new Error("private-digest-error"));
+    settle(
+      outcome === "resolve"
+        ? Uint8Array.from(Buffer.from(abcHash, "hex")).buffer
+        : new Error("private-digest-error"),
+    );
     await tick();
     assert.equal(reader.getSnapshot().binding, null);
     assert.throws(() => reader.takeBytes(), /not available/);
   });
 }
 test("input artifact: missing crypto produces no bytes and a fixed diagnostic", async (t) => {
-  t.mock.method(crypto.subtle, "digest", () => { throw new Error("private-crypto-error"); });
+  t.mock.method(crypto.subtle, "digest", () => {
+    throw new Error("private-crypto-error");
+  });
   const { reader, result } = await read();
   denied(reader, result, "digest_unavailable");
   assert.ok(!JSON.stringify(result).includes("private-crypto-error"));
@@ -396,11 +566,17 @@ test("input artifact: crypto rejection wipes private payload", async (t) => {
 test("input artifact: closed instances never inspect a late source", async () => {
   const reader = make();
   reader.close();
-  const source = { get getReader() { assert.fail("late source accessed"); } };
+  const source = {
+    get getReader() {
+      assert.fail("late source accessed");
+    },
+  };
   assert.equal((await reader.read(source)).status, "closed");
 });
 test("input artifact: no implicit fetch, storage or execution occurs", async (t) => {
-  const fetch = t.mock.method(globalThis, "fetch", () => { assert.fail("implicit fetch"); });
+  const fetch = t.mock.method(globalThis, "fetch", () => {
+    assert.fail("implicit fetch");
+  });
   const { reader } = await read();
   reader.takeBytes();
   reader.close();
@@ -413,7 +589,9 @@ async function serverFor(t, handle) {
   await once(server, "listening");
   t.after(async () => {
     server.closeAllConnections();
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   });
   return `http://127.0.0.1:${server.address().port}/artifact`;
 }
@@ -458,7 +636,10 @@ test("input artifact HTTP: real socket failure yields no partial delivery", asyn
   assert.equal(response.body.locked, false);
 });
 test("input artifact HTTP: local Abort interrupts an active real response", async (t) => {
-  const url = await serverFor(t, (_request, response) => { response.writeHead(200); response.write("a"); });
+  const url = await serverFor(t, (_request, response) => {
+    response.writeHead(200);
+    response.write("a");
+  });
   const response = await fetch(url);
   const reader = make();
   const controller = new AbortController();

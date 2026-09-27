@@ -1,6 +1,6 @@
 # ZT12-01 执行记录
 
-状态：InProgress（A/A2已由PR #48/#50合并，A3字节流消费者验收中；完整持久边界联调仍Blocked）。父Issue #46，子Issue #47 / PR #48。原ZT03-02前置不删除；Issue #32/#35与Draft PR #33保留。
+状态：InProgress（A/A2/A3已由PR #48/#50/#52合并，A4输入产物字节交接最终验收见PR #54；完整持久边界联调仍Blocked）。父Issue #46，子Issue #47 / PR #48。原ZT03-02前置不删除；Issue #32/#35与Draft PR #33保留。
 
 ## 原工作包与独立增量
 
@@ -18,4 +18,8 @@ ZT04-03的正文/证据/活动/对话与通用决策、ZT02-06完整文件/预�
 
 ## A3：事件字节流消费者
 
-继PR #50只读观察器后，Issue #51推进严格UTF-8/NDJSON、重复键拒绝、原始容量限制、真实ReadableStream读取和Abort/close。见[A3执行记录](ZT12-01-A3-execution.md)。独立本机HTTP测试不替代真实供应商/授权/持久边界；父完整关闭条件不变，最终精确验收和合并以关联PR为准。
+继PR #50只读观察器后，Issue #51推进严格UTF-8/NDJSON、重复键拒绝、原始容量限制、真实ReadableStream读取和Abort/close。见[A3执行记录](ZT12-01-A3-execution.md)。独立本机HTTP测试不替代真实供应商/授权/持久边界；父完整关闭条件不变，A3已由PR #52通过精确验收并合并，子51关闭。
+
+## A4：输入产物字节完整性
+
+A3已由PR #52合并。Issue #53 / PR #54在只读边界内补实际字节检查：消费者input_artifacts与manifest精确引用绑定，原始长度/SHA-256匹配后仅一次性移交已检查缓冲。见[A4执行记录](ZT12-01-A4-execution.md)。不是数据库产物存在证明或授权，完整持久联调与真实宿主条件不变；本增量未改变原迁移审查。

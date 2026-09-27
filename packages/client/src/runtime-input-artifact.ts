@@ -299,7 +299,10 @@ export class RuntimeInputArtifactReader {
         try {
           // Web Crypto snapshots this private buffer; no pluggable digest or untrusted bytes escape.
           const digest = await this.wait(
-            globalThis.crypto.subtle.digest("SHA-256", this.#bytes!.buffer as ArrayBuffer),
+            globalThis.crypto.subtle.digest(
+              "SHA-256",
+              this.#bytes!.buffer as ArrayBuffer,
+            ),
           );
           if (this.#snapshot.status === "checking" && digest !== null) {
             const hex = Array.from(new Uint8Array(digest), (byte) =>
