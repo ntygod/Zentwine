@@ -6,11 +6,18 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync, fork } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { inspectRuntimeDirectory, runRuntimeInspectionCli } from "../scripts/runtime-inspect.mjs";
+import {
+  inspectRuntimeDirectory,
+  runRuntimeInspectionCli,
+} from "../scripts/runtime-inspect.mjs";
 import { inspectionFixture } from "./fixtures/runtime-inspection-data.mjs";
 
-const script = fileURLToPath(new URL("../scripts/runtime-inspect.mjs", import.meta.url));
-const fixture = fileURLToPath(new URL("./fixtures/runtime-inspect-faults.mjs", import.meta.url));
+const script = fileURLToPath(
+  new URL("../scripts/runtime-inspect.mjs", import.meta.url),
+);
+const fixture = fileURLToPath(
+  new URL("./fixtures/runtime-inspect-faults.mjs", import.meta.url),
+);
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function directory(t) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zt-inspect-cli-"));
@@ -25,7 +32,9 @@ async function directory(t) {
 }
 function cli(dir, args = [], options = {}) {
   const child = spawnSync(process.execPath, [script, dir, ...args], {
-    encoding: "utf8", timeout: 10000, ...options,
+    encoding: "utf8",
+    timeout: 10000,
+    ...options,
   });
   assert.equal(child.error, undefined);
   assert.equal(child.signal, null);
@@ -66,33 +75,62 @@ function noLeak(result, dir) {
 
 test("inspection CLI: real command verifies the Studio sample without changing file contents", async (t) => {
   const { dir, file, f } = await directory(t);
-  const before = await Promise.all((await fs.readdir(dir)).map(async (name) => [name, sha(await fs.readFile(file(name)))]));
+  const before = await Promise.all(
+    (await fs.readdir(dir)).map(async (name) => [
+      name,
+      sha(await fs.readFile(file(name))),
+    ]),
+  );
   const result = cli(dir);
   assert.equal(result.status, "passed");
   assert.equal(result.executed, true);
   assert.equal(result.stage, "complete");
-  assert.deepEqual(result.checked, { producers: 2, artifacts: 2, bytes: f.bytes.reduce((n, b) => n + b.length, 0) });
+  assert.deepEqual(result.checked, {
+    producers: 2,
+    artifacts: 2,
+    bytes: f.bytes.reduce((n, b) => n + b.length, 0),
+  });
   assert.equal(result.plan_sha256, sha(await fs.readFile(file("plan.json"))));
   assert.equal(result.producer_trust, "reported_not_authenticated");
-  assert.deepEqual(await fs.readdir(dir), before.map(([name]) => name));
-  for (const [name, hash] of before) assert.equal(sha(await fs.readFile(file(name))), hash);
+  assert.deepEqual(
+    await fs.readdir(dir),
+    before.map(([name]) => name),
+  );
+  for (const [name, hash] of before)
+    assert.equal(sha(await fs.readFile(file(name))), hash);
   noLeak(result, dir);
 });
 test("inspection CLI: documented example generator and command work from another cwd", async (t) => {
   const { dir } = await directory(t);
   const example = path.join(dir, "example");
-  const generator = fileURLToPath(new URL("../scripts/runtime-inspection-example.mjs", import.meta.url));
+  const generator = fileURLToPath(
+    new URL("../scripts/runtime-inspection-example.mjs", import.meta.url),
+  );
   assert.equal(spawnSync(process.execPath, [generator, example]).status, 0);
   assert.equal(cli(example, [], { cwd: os.tmpdir() }).status, "passed");
 });
 test("inspection CLI: import alone does not inspect or print a report", () => {
   const code = `await import(${JSON.stringify(new URL("../scripts/runtime-inspect.mjs", import.meta.url).href)});`;
-  const child = spawnSync(process.execPath, ["--input-type=module", "-e", code], { encoding: "utf8" });
+  const child = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", code],
+    { encoding: "utf8" },
+  );
   assert.equal(child.status, 0);
   assert.equal(child.stdout, "");
   assert.equal(child.stderr, "");
 });
-for (const args of [[], ["--unknown"], ["dir", "extra"], ["dir", "--timeout-ms", "0"], ["dir", "--timeout-ms", "300001"], ["dir", "--timeout-ms", "1e3"], ["dir", "--timeout-ms", "-2"], ["dir", "--timeout-ms", "1.5"], ["dir", "--timeout-ms", "10", "extra"]]) {
+for (const args of [
+  [],
+  ["--unknown"],
+  ["dir", "extra"],
+  ["dir", "--timeout-ms", "0"],
+  ["dir", "--timeout-ms", "300001"],
+  ["dir", "--timeout-ms", "1e3"],
+  ["dir", "--timeout-ms", "-2"],
+  ["dir", "--timeout-ms", "1.5"],
+  ["dir", "--timeout-ms", "10", "extra"],
+]) {
   test(`inspection CLI: rejects argument form ${JSON.stringify(args)}`, async () => {
     const result = await runRuntimeInspectionCli(args);
     assert.equal(result.exit_code, 64);
@@ -117,10 +155,16 @@ for (const name of ["plan.json", "producer-1.ndjson", "input-2.bin"]) {
   });
 }
 for (const [label, content] of [
-  ["duplicate key", '{"inspection_version":"1.0.0","inspection_version":"1.0.0"}'],
+  [
+    "duplicate key",
+    '{"inspection_version":"1.0.0","inspection_version":"1.0.0"}',
+  ],
   ["invalid UTF8", Buffer.from([0xff, 0xfe])],
   ["BOM", "\ufeff{}"],
-  ["path injection", '{"inspection_version":"1.0.0","path":"../../not-for-output"}'],
+  [
+    "path injection",
+    '{"inspection_version":"1.0.0","path":"../../not-for-output"}',
+  ],
   ["malicious text", '{"secret":"not-for-output\\u001b[2J"}'],
   ["oversized plan", " ".repeat(262145)],
 ]) {
@@ -134,10 +178,14 @@ for (const [label, content] of [
   });
 }
 for (const [label, modify] of [
-  ["same-length corruption", async (file) => {
-    const bytes = await fs.readFile(file("input-1.bin")); bytes[0] ^= 1;
-    await fs.writeFile(file("input-1.bin"), bytes);
-  }],
+  [
+    "same-length corruption",
+    async (file) => {
+      const bytes = await fs.readFile(file("input-1.bin"));
+      bytes[0] ^= 1;
+      await fs.writeFile(file("input-1.bin"), bytes);
+    },
+  ],
   ["truncation", async (file) => fs.truncate(file("input-1.bin"), 1)],
 ]) {
   test(`inspection CLI: ${label} cannot produce a passing report`, async (t) => {
@@ -160,9 +208,15 @@ test("inspection CLI: oversized artifact fails preflight without reading any rep
   assert.equal(result.fault.code, "file_size_limit");
 });
 for (const [label, mutate] of [
-  ["wrong manifest", (events) => events.replace(/manifest_id/g, "not_manifest")],
+  [
+    "wrong manifest",
+    (events) => events.replace(/manifest_id/g, "not_manifest"),
+  ],
   ["unterminated tail", (events) => events.slice(0, -1)],
-  ["missing success", (events) => events.split("\n").slice(0, -2).join("\n") + "\n"],
+  [
+    "missing success",
+    (events) => events.split("\n").slice(0, -2).join("\n") + "\n",
+  ],
   ["invalid UTF8", () => Buffer.from([0xff, 10])],
 ]) {
   test(`inspection CLI: ${label} report prevents all artifact-body reads`, async (t) => {
@@ -173,8 +227,14 @@ for (const [label, mutate] of [
     assert.equal(result.exit_code, 2);
     assert.equal(result.stage, "producers");
     assert.equal(result.checked.producers, 1);
-    assert.equal(tracked.reads.some((name) => name.startsWith("input-")), false);
-    assert.equal(tracked.handles.every((handle) => handle.fd === -1), true);
+    assert.equal(
+      tracked.reads.some((name) => name.startsWith("input-")),
+      false,
+    );
+    assert.equal(
+      tracked.handles.every((handle) => handle.fd === -1),
+      true,
+    );
   });
 }
 for (const kind of ["symlink", "hardlink", "directory", "fifo"]) {
@@ -185,7 +245,8 @@ for (const kind of ["symlink", "hardlink", "directory", "fifo"]) {
     if (kind === "symlink") await fs.symlink(saved, file("input-1.bin"));
     if (kind === "hardlink") await fs.link(saved, file("input-1.bin"));
     if (kind === "directory") await fs.mkdir(file("input-1.bin"));
-    if (kind === "fifo") assert.equal(spawnSync("mkfifo", [file("input-1.bin")]).status, 0);
+    if (kind === "fifo")
+      assert.equal(spawnSync("mkfifo", [file("input-1.bin")]).status, 0);
     const result = cli(dir);
     assert.equal(result.exit_code, 64);
     assert.equal(result.fault.code, "invalid_file_type");
@@ -198,7 +259,10 @@ test("inspection CLI: rejects symlink directory rather than inspecting its targe
 });
 test("inspection CLI: full file-name convention is explicit and extra files are never inspected", async (t) => {
   const { dir, file } = await directory(t);
-  await fs.writeFile(file("package.json"), '{"scripts":{"start":"not-for-output"}}');
+  await fs.writeFile(
+    file("package.json"),
+    '{"scripts":{"start":"not-for-output"}}',
+  );
   await fs.symlink("/not-for-output", file("unrelated"));
   const tracked = await opened(t);
   assert.equal((await inspectRuntimeDirectory(dir)).exit_code, 0);
@@ -207,7 +271,8 @@ test("inspection CLI: full file-name convention is explicit and extra files are 
 });
 test("inspection CLI: valid empty plan is explicit, not an executable run", async (t) => {
   const { dir, f, file } = await directory(t);
-  f.plan.consumer.input_artifacts = []; f.plan.producers = [];
+  f.plan.consumer.input_artifacts = [];
+  f.plan.producers = [];
   await fs.writeFile(file("plan.json"), JSON.stringify(f.plan));
   const result = cli(dir);
   assert.equal(result.exit_code, 0);
@@ -216,7 +281,10 @@ test("inspection CLI: valid empty plan is explicit, not an executable run", asyn
 test("inspection CLI: exact plan byte boundary passes, one additional byte fails", async (t) => {
   const { dir, file } = await directory(t);
   const plan = await fs.readFile(file("plan.json"), "utf8");
-  await fs.writeFile(file("plan.json"), plan + " ".repeat(262144 - Buffer.byteLength(plan)));
+  await fs.writeFile(
+    file("plan.json"),
+    plan + " ".repeat(262144 - Buffer.byteLength(plan)),
+  );
   assert.equal(cli(dir).exit_code, 0);
   await fs.appendFile(file("plan.json"), " ");
   assert.equal(cli(dir).exit_code, 64);
@@ -227,14 +295,19 @@ test("inspection CLI: event file cap is enforced before body reads", async (t) =
   const tracked = await opened(t);
   const result = await inspectRuntimeDirectory(dir);
   assert.equal(result.exit_code, 64);
-  assert.deepEqual(tracked.reads.filter((name) => name !== "plan.json"), []);
+  assert.deepEqual(
+    tracked.reads.filter((name) => name !== "plan.json"),
+    [],
+  );
 });
 test("inspection CLI: pre-aborted signal never opens a file and never echoes its reason", async (t) => {
   const { dir } = await directory(t);
   const tracked = await opened(t);
   const controller = new AbortController();
   controller.abort(new Error("not-for-output"));
-  const result = await inspectRuntimeDirectory(dir, { signal: controller.signal });
+  const result = await inspectRuntimeDirectory(dir, {
+    signal: controller.signal,
+  });
   assert.equal(result.exit_code, 130);
   assert.equal(tracked.handles.length, 0);
   noLeak(result, dir);
@@ -245,10 +318,18 @@ test("inspection CLI: abort between reports closes all handles without artifact 
   const tracked = await opened(t, async (name) => {
     if (name === "producer-2.ndjson") controller.abort("not-for-output");
   });
-  const result = await inspectRuntimeDirectory(dir, { signal: controller.signal });
+  const result = await inspectRuntimeDirectory(dir, {
+    signal: controller.signal,
+  });
   assert.equal(result.exit_code, 130);
-  assert.equal(tracked.reads.some((n) => n.startsWith("input-")), false);
-  assert.equal(tracked.handles.every((h) => h.fd === -1), true);
+  assert.equal(
+    tracked.reads.some((n) => n.startsWith("input-")),
+    false,
+  );
+  assert.equal(
+    tracked.handles.every((h) => h.fd === -1),
+    true,
+  );
   noLeak(result, dir);
 });
 test("inspection CLI: file mutation during reading is rejected and descriptors close", async (t) => {
@@ -256,12 +337,16 @@ test("inspection CLI: file mutation during reading is rejected and descriptors c
   let changed = false;
   const tracked = await opened(t, async (name) => {
     if (name === "input-1.bin" && !changed) {
-      changed = true; await fs.appendFile(file(name), "x");
+      changed = true;
+      await fs.appendFile(file(name), "x");
     }
   });
   const result = await inspectRuntimeDirectory(dir);
   assert.equal(result.exit_code, 2);
-  assert.equal(tracked.handles.every((h) => h.fd === -1), true);
+  assert.equal(
+    tracked.handles.every((h) => h.fd === -1),
+    true,
+  );
 });
 test("inspection CLI: replacing a pre-opened path with identical bytes still rejects", async (t) => {
   const { dir, file } = await directory(t);
@@ -277,44 +362,67 @@ test("inspection CLI: replacing a pre-opened path with identical bytes still rej
   const result = await inspectRuntimeDirectory(dir);
   assert.equal(result.exit_code, 2);
   assert.equal(result.fault.code, "file_changed");
-  assert.equal(tracked.handles.every((h) => h.fd === -1), true);
+  assert.equal(
+    tracked.handles.every((h) => h.fd === -1),
+    true,
+  );
 });
 test("inspection CLI: unexpected native errors do not reveal paths or stack traces", async (t) => {
   const { dir } = await directory(t);
-  t.mock.method(fs, "lstat", async () => { throw new Error("not-for-output"); });
+  t.mock.method(fs, "lstat", async () => {
+    throw new Error("not-for-output");
+  });
   const result = await inspectRuntimeDirectory(dir);
   assert.equal(result.exit_code, 64);
   noLeak(result, dir);
 });
 for (const action of ["deadline", "SIGINT", "SIGTERM"]) {
-  test(`inspection CLI: actual child handles ${action} with nonzero JSON and exits`, { timeout: 10000 }, async (t) => {
-    const { dir } = await directory(t);
-    const child = fork(script, [dir, "--timeout-ms", action === "deadline" ? "100" : "10000"], {
-      execArgv: ["--import", fixture],
-      env: { ...process.env, ZT_INSPECTION_TEST_FAULT: action },
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
-    });
-    t.after(() => { if (child.exitCode === null) child.kill("SIGKILL"); });
-    let stdout = "", stderr = "";
-    child.stdout.on("data", (b) => { stdout += b; });
-    child.stderr.on("data", (b) => { stderr += b; });
-    child.on("message", (value) => {
-      assert.equal(value, "read_started");
-      if (action !== "deadline") child.kill(action);
-    });
-    const code = await new Promise((resolve, reject) => {
-      child.once("error", reject); child.once("exit", (value, signal) => {
-        assert.equal(signal, null); resolve(value);
+  test(
+    `inspection CLI: actual child handles ${action} with nonzero JSON and exits`,
+    { timeout: 10000 },
+    async (t) => {
+      const { dir } = await directory(t);
+      const child = fork(
+        script,
+        [dir, "--timeout-ms", action === "deadline" ? "100" : "10000"],
+        {
+          execArgv: ["--import", fixture],
+          env: { ...process.env, ZT_INSPECTION_TEST_FAULT: action },
+          stdio: ["ignore", "pipe", "pipe", "ipc"],
+        },
+      );
+      t.after(() => {
+        if (child.exitCode === null) child.kill("SIGKILL");
       });
-    });
-    const expected = action === "deadline" ? 124 : action === "SIGINT" ? 130 : 143;
-    assert.equal(code, expected);
-    const result = JSON.parse(stdout);
-    assert.equal(result.exit_code, expected);
-    assert.equal(result.authorization, false);
-    assert.equal(result.cleanup, "complete");
-    assert.equal(stderr, "");
-  });
+      let stdout = "",
+        stderr = "";
+      child.stdout.on("data", (b) => {
+        stdout += b;
+      });
+      child.stderr.on("data", (b) => {
+        stderr += b;
+      });
+      child.on("message", (value) => {
+        assert.equal(value, "read_started");
+        if (action !== "deadline") child.kill(action);
+      });
+      const code = await new Promise((resolve, reject) => {
+        child.once("error", reject);
+        child.once("exit", (value, signal) => {
+          assert.equal(signal, null);
+          resolve(value);
+        });
+      });
+      const expected =
+        action === "deadline" ? 124 : action === "SIGINT" ? 130 : 143;
+      assert.equal(code, expected);
+      const result = JSON.parse(stdout);
+      assert.equal(result.exit_code, expected);
+      assert.equal(result.authorization, false);
+      assert.equal(result.cleanup, "complete");
+      assert.equal(stderr, "");
+    },
+  );
 }
 test("inspection CLI: trailing separator does not disguise a symlink root", async (t) => {
   const { dir, file } = await directory(t);
@@ -338,16 +446,23 @@ test("inspection CLI: cleanup failure cannot leave a passing exit status", async
   const native = fs.open;
   const handles = [];
   t.mock.method(fs, "open", async (...args) => {
-    const h = await native(...args); handles.push(h);
+    const h = await native(...args);
+    handles.push(h);
     const close = h.close.bind(h);
-    h.close = async () => { await close(); throw new Error("not-for-output"); };
+    h.close = async () => {
+      await close();
+      throw new Error("not-for-output");
+    };
     return h;
   });
   const result = await inspectRuntimeDirectory(dir);
   assert.equal(result.exit_code, 3);
   assert.equal(result.cleanup, "failed");
   assert.equal(result.fault.code, "cleanup_failed");
-  assert.equal(handles.every((h) => h.fd === -1), true);
+  assert.equal(
+    handles.every((h) => h.fd === -1),
+    true,
+  );
   noLeak(result, dir);
 });
 test("inspection CLI: cancellation during descriptor cleanup cannot return success", async (t) => {
@@ -357,10 +472,15 @@ test("inspection CLI: cancellation during descriptor cleanup cannot return succe
   t.mock.method(fs, "open", async (...args) => {
     const h = await native(...args);
     const close = h.close.bind(h);
-    h.close = async () => { controller.abort(); await close(); };
+    h.close = async () => {
+      controller.abort();
+      await close();
+    };
     return h;
   });
-  const result = await inspectRuntimeDirectory(dir, { signal: controller.signal });
+  const result = await inspectRuntimeDirectory(dir, {
+    signal: controller.signal,
+  });
   assert.equal(result.exit_code, 130);
   assert.equal(result.cleanup, "complete");
 });

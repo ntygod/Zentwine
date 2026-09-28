@@ -99,7 +99,11 @@ export async function inspectRuntimeDirectory(directory, options = {}) {
     const current = await record.handle.stat({ bigint: true });
     const named = await fs.lstat(record.filename, { bigint: true });
     checkAbort();
-    if (!regular(current) || !same(record.stat, current) || !same(current, named))
+    if (
+      !regular(current) ||
+      !same(record.stat, current) ||
+      !same(current, named)
+    )
       fail("file_changed");
   };
   const acquire = async (name, maximum) => {
@@ -133,7 +137,12 @@ export async function inspectRuntimeDirectory(directory, options = {}) {
           );
           try {
             checkAbort();
-            const read = await record.handle.read(bytes, 0, bytes.length, position);
+            const read = await record.handle.read(
+              bytes,
+              0,
+              bytes.length,
+              position,
+            );
             if (cancelled) return;
             checkAbort();
             position += read.bytesRead;
@@ -181,7 +190,10 @@ export async function inspectRuntimeDirectory(directory, options = {}) {
       for await (const part of stream(planFile)) parts.push(part);
       const bytes = Buffer.concat(parts);
       try {
-        text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+        text = new TextDecoder("utf-8", {
+          fatal: true,
+          ignoreBOM: true,
+        }).decode(bytes);
         bundle = createRuntimeInputInspection(text);
         result.plan_sha256 = createHash("sha256").update(bytes).digest("hex");
       } finally {
@@ -207,7 +219,10 @@ export async function inspectRuntimeDirectory(directory, options = {}) {
       artifacts.push({
         id: a.binding.artifact.ref.artifact_id,
         size: a.binding.artifact.size_bytes,
-        record: await acquire(`input-${index + 1}.bin`, a.binding.artifact.size_bytes),
+        record: await acquire(
+          `input-${index + 1}.bin`,
+          a.binding.artifact.size_bytes,
+        ),
       });
     }
     checkAbort();
@@ -242,16 +257,40 @@ export async function inspectRuntimeDirectory(directory, options = {}) {
   } catch (error) {
     const interrupted = signal.aborted;
     result.status = interrupted
-      ? expired ? "timed_out" : "cancelled"
-      : result.executed ? "rejected" : result.stage === "runtime" ? "unavailable" : "invalid_input";
-    result.exit_code = interrupted ? expired ? 124 : 130 : result.executed ? 2 : result.stage === "runtime" ? 3 : 64;
+      ? expired
+        ? "timed_out"
+        : "cancelled"
+      : result.executed
+        ? "rejected"
+        : result.stage === "runtime"
+          ? "unavailable"
+          : "invalid_input";
+    result.exit_code = interrupted
+      ? expired
+        ? 124
+        : 130
+      : result.executed
+        ? 2
+        : result.stage === "runtime"
+          ? 3
+          : 64;
     result.fault = {
-      code: interrupted ? expired ? "deadline_exceeded" : "interrupted" : error instanceof InspectionFault ? error.code : result.stage === "runtime" ? "runtime_unavailable" : "local_input_unavailable",
+      code: interrupted
+        ? expired
+          ? "deadline_exceeded"
+          : "interrupted"
+        : error instanceof InspectionFault
+          ? error.code
+          : result.stage === "runtime"
+            ? "runtime_unavailable"
+            : "local_input_unavailable",
       subject,
     };
   } finally {
     bundle?.close();
-    const closed = await Promise.allSettled(records.map((r) => r.handle.close()));
+    const closed = await Promise.allSettled(
+      records.map((r) => r.handle.close()),
+    );
     if (performance.now() >= deadline) {
       expired = true;
       abort();
@@ -282,13 +321,18 @@ export async function runRuntimeInspectionCli(args) {
     return { ...report(), status: "help", exit_code: 0, usage };
   const valid =
     (args.length === 1 ||
-      (args.length === 3 && args[1] === "--timeout-ms" && /^[1-9]\d{0,5}$/.test(args[2]))) &&
+      (args.length === 3 &&
+        args[1] === "--timeout-ms" &&
+        /^[1-9]\d{0,5}$/.test(args[2]))) &&
     !args[0].startsWith("--");
   if (!valid) return inspectRuntimeDirectory("");
   const controller = new AbortController();
   let termination = false;
   const interrupt = () => controller.abort();
-  const terminate = () => { termination = true; interrupt(); };
+  const terminate = () => {
+    termination = true;
+    interrupt();
+  };
   process.once("SIGINT", interrupt);
   process.once("SIGTERM", terminate);
   try {
@@ -303,9 +347,14 @@ export async function runRuntimeInspectionCli(args) {
     process.removeListener("SIGTERM", terminate);
   }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   // EPIPE/output failures must not turn an undelivered report into success.
-  process.stdout.on("error", () => { process.exitCode = 3; });
+  process.stdout.on("error", () => {
+    process.exitCode = 3;
+  });
   const result = await runRuntimeInspectionCli(process.argv.slice(2));
   process.exitCode = result.exit_code;
   process.stdout.write(JSON.stringify(result) + "\n");
