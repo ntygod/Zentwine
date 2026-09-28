@@ -120,6 +120,12 @@
     margin: 12px;
     padding: 12px;
   }
+  .comparison-controls label {
+    flex-basis: 100%;
+  }
+  .comparison-controls input {
+    width: 100%;
+  }
   .comparison-columns,
   .comparison-identity {
     grid-template-columns: minmax(0, 1fr);
