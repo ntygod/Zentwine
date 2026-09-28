@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "guides": [
+    "AGENTS.md",
+    ".github/AGENTS.md",
+    "apps/AGENTS.md",
+    "apps/studio/AGENTS.md",
+    "docs/AGENTS.md",
+    "infra/AGENTS.md",
+    "packages/AGENTS.md",
+    "packages/client/AGENTS.md",
+    "packages/contracts/AGENTS.md",
+    "packages/db/AGENTS.md",
+    "packages/policy/AGENTS.md",
+    "packages/ui/AGENTS.md",
+    "quality/AGENTS.md",
+    "scripts/AGENTS.md",
+    "services/api/AGENTS.md",
+    "spikes/AGENTS.md",
+    "tests/AGENTS.md"
+  ],
+  "entrypoints": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs/README.md",
+    "docs/tasks/status.md",
+    "docs/plans/README.md",
+    "docs/development/README.md",
+    "docs/tasks/README.md",
+    "docs/testing/README.md",
+    "docs/adr/README.md",
+    "docs/harness/README.md",
+    "docs/harness/verification.md",
+    "docs/maintenance/README.md"
+  ],
+  "limits": {
+    "guide_lines": 80,
+    "guide_bytes": 4096,
+    "chain_bytes": 12288,
+    "entry_lines": 140
+  },
+  "indexes": [
+    {
+      "entry": "docs/plans/README.md",
+      "glob": "docs/plans/[0-9]*.md"
+    },
+    {
+      "entry": "docs/plans/README.md",
+      "glob": "docs/modules/*.md"
+    },
+    {
+      "entry": "docs/development/README.md",
+      "glob": "docs/development/*.md"
+    },
+    {
+      "entry": "docs/tasks/README.md",
+      "glob": "docs/tasks/*execution.md"
+    },
+    {
+      "entry": "docs/testing/README.md",
+      "glob": "docs/testing/*-report.md"
+    },
+    {
+      "entry": "docs/adr/README.md",
+      "glob": "docs/adr/ADR-*.md"
+    }
+  ]
+}

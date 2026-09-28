@@ -28,11 +28,16 @@ jobs:
           mkdir -p /tmp/zentwine-plan-artifacts
           set -o pipefail
           /tmp/zentwine-docs-venv/bin/python scripts/validate_plans.py --validate-schemas --export /tmp/zentwine-plan-artifacts/backlog.json | tee /tmp/zentwine-plan-artifacts/validation.txt
+      - name: Validate progressive instructions and maintenance rejection paths
+        run: |
+          set -o pipefail
+          python3 scripts/harness.py check | tee /tmp/zentwine-plan-artifacts/harness.json
+          python3 -m unittest discover -s tests/quality -p 'test_harness*.py' -v 2>&1 | tee /tmp/zentwine-plan-artifacts/harness-tests.txt
       - name: Package reviewed documentation
         run: |
           git archive --format=zip --output=/tmp/zentwine-plan-artifacts/Zentwine-development-plans.zip HEAD
           git rev-parse HEAD > /tmp/zentwine-plan-artifacts/commit.txt
-          printf '%s\n' 'Documentation/schema checks only. Product and real-model tests are not run.' > /tmp/zentwine-plan-artifacts/SCOPE.txt
+          printf '%s\n' 'Documentation/schema and harness/maintenance tests only. Product and real-model tests are not run.' > /tmp/zentwine-plan-artifacts/SCOPE.txt
       - name: Hash and verify the documentation artifact
         run: |
           python3 scripts/quality/gate.py manifest --directory /tmp/zentwine-plan-artifacts --suite documentation --job-status success --output /tmp/zentwine-plan-artifacts/artifact-manifest.json
