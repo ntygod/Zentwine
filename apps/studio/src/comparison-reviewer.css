@@ -135,3 +135,41 @@
     padding-inline-start: 0;
   }
 }
+
+.repository-review-notes {
+  margin-top: 24px;
+  border-top: 1px solid var(--zt-border);
+  padding-top: 16px;
+}
+.review-note-composer {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+.review-note-composer label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.review-note-composer textarea,
+.review-note-composer input,
+.review-note-composer select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+.review-note-composer textarea {
+  resize: vertical;
+}
+.review-notes-list {
+  padding-inline-start: 24px;
+}
+.review-notes-list li {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--zt-border);
+}
+.review-note-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}

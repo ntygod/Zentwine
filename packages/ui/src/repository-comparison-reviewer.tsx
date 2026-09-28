@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  parseRepositoryComparisonReport,
+  createRepositoryReviewSession,
   comparisonDisplayText as display,
   REPOSITORY_COMPARISON_IMPORT_LIMITS,
-  type ImportedRepositoryComparison,
+  type RepositoryReviewSession,
   type ComparisonLine,
 } from "@zentwine/client";
+
+import { RepositoryReviewNotes } from "./repository-review-notes.js";
 
 const changes = {
   added: "新增",
@@ -23,9 +25,8 @@ export function RepositoryComparisonReviewer({
   onClose: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
-  const [report, setReport] = useState<ImportedRepositoryComparison | null>(
-    null,
-  );
+  const [session, setSession] = useState<RepositoryReviewSession | null>(null);
+  const report = session?.report ?? null;
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -57,7 +58,7 @@ export function RepositoryComparisonReviewer({
   function clear() {
     stop();
     setFile(null);
-    setReport(null);
+    setSession(null);
     setSelected(null);
     setQuery("");
     setPage(0);
@@ -82,7 +83,7 @@ export function RepositoryComparisonReviewer({
     if (!file || loading) return;
     const value = file;
     stop();
-    setReport(null);
+    setSession(null);
     setSelected(null);
     setError("");
     setLoading(true);
@@ -102,7 +103,7 @@ export function RepositoryComparisonReviewer({
     current.onerror = () =>
       finish("无法读取报告。请重新选择文件；内容不会回显。");
     current.onabort = () => finish("读取已取消。未保留报告。");
-    current.onload = () => {
+    current.onload = async () => {
       const bytes =
         current.result instanceof ArrayBuffer
           ? new Uint8Array(current.result)
@@ -119,8 +120,8 @@ export function RepositoryComparisonReviewer({
           fatal: true,
           ignoreBOM: true,
         }).decode(bytes);
-        const parsed = parseRepositoryComparisonReport(text);
-        if (token === generation.current) setReport(parsed);
+        const parsed = await createRepositoryReviewSession(text);
+        if (token === generation.current) setSession(parsed);
         finish();
       } catch {
         finish(
@@ -184,7 +185,7 @@ export function RepositoryComparisonReviewer({
       </p>
       <p>
         选择 CLI 导出的
-        JSON，再点击导入。只在本窗口内存中查看；不上传、不保存、不读取目录。控制与双向字符显示为
+        JSON，再点击导入。只在本窗口内存中查看；不上传、不自动保存、不读取目录。意见须显式下载才保存。控制与双向字符显示为
         Unicode 转义。
       </p>
       <div className="comparison-controls">
@@ -420,6 +421,13 @@ export function RepositoryComparisonReviewer({
                 </section>
               </div>
             </>
+          )}
+          {session && (
+            <RepositoryReviewNotes
+              key={session.report_sha256}
+              session={session}
+              selectedPath={selected}
+            />
           )}
         </>
       )}

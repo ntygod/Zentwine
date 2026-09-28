@@ -30,3 +30,7 @@ node scripts/repository-compare.mjs /absolute/repository --base <完整baseSHA> 
 构建后运行 `node --test tests/repository-comparison-import.test.mjs`；浏览器运行 `pnpm exec playwright test tests/browser/repository-comparison.spec.ts`。完整回归仍为原 `pnpm check` / quality CI。client负责解析与不可变投影，ui负责FileReader生命周期和文本渲染，app只组装。
 
 参见 [ADR-036](../adr/ADR-036-studio-comparison-review.md)、[执行记录](../tasks/ZT18-01-D-execution.md)、[报告](../testing/zt18-01-d-report.md)。未完成 ZT17 全编辑器、持久Review、远端身份或真实执行；原业务阻断保持。
+
+## 文件级意见交接
+
+在同一报告内选择路径后可填写文件级意见，显式下载并交给下一位成员。见 [意见交接指南](local-review-notes.md)。报告格式检查之外新增原报告字节SHA-256绑定，不提升来源或署名信任；不提供审查批准。

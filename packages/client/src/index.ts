@@ -123,3 +123,5 @@ export {
 } from "./runtime-inspection-plan.js";
 
 export * from "./repository-comparison.js";
+
+export * from "./repository-review-notes.js";
