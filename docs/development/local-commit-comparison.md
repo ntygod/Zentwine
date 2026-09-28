@@ -52,3 +52,7 @@ const detail = await port.readCommitDiff(baseCommit, headCommit, filePath, signa
 这是指定提交的只读比较，不是当前工作区一致性或跨租户沙箱；并发 GC/损坏可使读取失败，同用户恶意替换/ABA 不在完整防护承诺内。历史、索引、工作文件均不由本命令更改（底层读取仍可能更新 atime）。
 
 验证入口：`node --test tests/local-repository.test.mjs tests/local-worktree.test.mjs tests/local-commit-comparison.test.mjs`。见 [ADR-035](../adr/ADR-035-fixed-commit-comparison.md)、[执行记录](../tasks/ZT18-01-C-execution.md)、[验收报告](../testing/zt18-01-c-report.md)。#32/#35/PR33 与父 #63 的持久、远端权限前置仍保留。
+
+## 在 Studio 阅读报告
+
+见 [Studio 本地代码变更审阅](studio-code-review.md)。显式保存JSON后本地导入，只有报告携带的单文件正文可展开；不是浏览器直接连接Git，也不认证报告来源。

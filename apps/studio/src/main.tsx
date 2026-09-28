@@ -1,4 +1,4 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AppBoundary,
@@ -9,12 +9,16 @@ import {
   ConnectionBadge,
   useBootstrap,
   RuntimeInspector,
+  RepositoryComparisonReviewer,
 } from "@zentwine/ui";
 import { STUDIO_PATH, WORKBENCH_PATH } from "@zentwine/contracts";
 import "@zentwine/ui/styles.css";
 import "./runtime-inspector.css";
+import "./comparison-reviewer.css";
 function Studio() {
   const { connection, retry } = useBootstrap();
+  const [reviewing, setReviewing] = useState(false);
+  const reviewLauncher = useRef<HTMLButtonElement>(null);
   const [inspecting, setInspecting] = useState(false);
   const home =
     window.location.pathname === "/" ||
@@ -101,7 +105,12 @@ function Studio() {
           </section>
           {home && !inspecting && (
             <div className="inspection-launch">
-              <button onClick={() => setInspecting(true)}>
+              <button
+                onClick={() => {
+                  setReviewing(false);
+                  setInspecting(true);
+                }}
+              >
                 检查本地交接包
               </button>
               <span>本地诊断 · 不启动 Agent</span>
@@ -109,6 +118,28 @@ function Studio() {
           )}
           {home && inspecting && (
             <RuntimeInspector onClose={() => setInspecting(false)} />
+          )}
+          {home && (
+            <div className="inspection-launch">
+              <button
+                ref={reviewLauncher}
+                onClick={() => {
+                  setInspecting(false);
+                  setReviewing(true);
+                }}
+              >
+                审阅本地代码变更
+              </button>
+              <span>导入比较报告 · 不读取目录或启动 Agent</span>
+            </div>
+          )}
+          {home && reviewing && (
+            <RepositoryComparisonReviewer
+              onClose={() => {
+                setReviewing(false);
+                reviewLauncher.current?.focus();
+              }}
+            />
           )}
           <section className="terminal" aria-label="运行区域">
             <div className="terminal-tabs">
