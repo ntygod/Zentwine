@@ -16,7 +16,9 @@ export function handoffFixture(
   entry.size_bytes = bytes.byteLength;
   consumer.input_artifacts = [structuredClone(entry.ref)];
   const event = (type, sequence, payload) => ({
-    ...structuredClone(fixture.event_variants.find((item) => item.type === type)),
+    ...structuredClone(
+      fixture.event_variants.find((item) => item.type === type),
+    ),
     event_id: handoffId(sequence),
     sequence: String(sequence),
     ...(payload ? { payload } : {}),
@@ -26,5 +28,13 @@ export function handoffFixture(
     event("artifact.produced", 2, { artifact: structuredClone(entry.ref) }),
     event("run.succeeded", 3, { manifest_id: manifest.manifest_id }),
   ];
-  return { producer, consumer, manifest, events, bytes, id: entry.ref.artifact_id, event };
+  return {
+    producer,
+    consumer,
+    manifest,
+    events,
+    bytes,
+    id: entry.ref.artifact_id,
+    event,
+  };
 }

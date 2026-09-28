@@ -1,7 +1,11 @@
 /** Fixed test-only peers. Never executes supplied code, shell commands or repository files. */
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { handoffFixture, handoffHash, handoffId } from "./runtime-handoff-data.mjs";
+import {
+  handoffFixture,
+  handoffHash,
+  handoffId,
+} from "./runtime-handoff-data.mjs";
 
 const mode = process.argv[2];
 if (mode === "producer") {
@@ -16,7 +20,8 @@ if (mode === "producer") {
   const server = createServer((request, response) => {
     if (request.url === "/events") {
       response.writeHead(200, { "Content-Type": "application/x-ndjson" });
-      for (const event of data.events) response.write(JSON.stringify(event) + "\n");
+      for (const event of data.events)
+        response.write(JSON.stringify(event) + "\n");
       response.end();
     } else if (request.url === "/manifest") {
       response.writeHead(200, { "Content-Type": "application/json" });
@@ -44,13 +49,21 @@ if (mode === "producer") {
         throw new Error("Invalid fixed peer bytes");
       const bytes = Uint8Array.from(message.bytes);
       const digest = handoffHash(bytes);
-      if (digest !== message.expected_sha256) throw new Error("Peer integrity mismatch");
-      const parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+      if (digest !== message.expected_sha256)
+        throw new Error("Peer integrity mismatch");
+      const parsed = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      );
       if (!Array.isArray(parsed.values) || parsed.values.length !== 3)
         throw new Error("Invalid fixed peer input");
       const total = parsed.values.reduce((sum, value) => sum + value, 0);
       if (total !== parsed.total) throw new Error("Peer computation mismatch");
-      process.send({ pid: process.pid, consumed_sha256: digest, total, count: parsed.values.length });
+      process.send({
+        pid: process.pid,
+        consumed_sha256: digest,
+        total,
+        count: parsed.values.length,
+      });
       setImmediate(() => process.disconnect());
     } catch {
       process.exitCode = 1;

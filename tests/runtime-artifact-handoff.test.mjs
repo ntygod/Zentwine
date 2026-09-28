@@ -9,18 +9,28 @@ const encode = (text) => new TextEncoder().encode(text);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 function stream(chunks, hooks = {}) {
   let i = 0;
-  return new ReadableStream({
-    pull(controller) {
-      if (i < chunks.length) controller.enqueue(chunks[i++]);
-      else controller.close();
+  return new ReadableStream(
+    {
+      pull(controller) {
+        if (i < chunks.length) controller.enqueue(chunks[i++]);
+        else controller.close();
+      },
+      ...hooks,
     },
-    ...hooks,
-  }, { highWaterMark: 0 });
+    { highWaterMark: 0 },
+  );
 }
 const wire = (events, tail = "") =>
-  stream([encode(events.map((event) => JSON.stringify(event) + "\n").join("") + tail)]);
+  stream([
+    encode(events.map((event) => JSON.stringify(event) + "\n").join("") + tail),
+  ]);
 const make = (data = handoffFixture()) =>
-  new RuntimeArtifactHandoff(data.producer, data.consumer, data.manifest, data.id);
+  new RuntimeArtifactHandoff(
+    data.producer,
+    data.consumer,
+    data.manifest,
+    data.id,
+  );
 function denied(handoff, result, fault) {
   assert.equal(result.status, "rejected");
   assert.equal(result.fault, fault);
@@ -74,14 +84,25 @@ test("handoff: full stream and exact manifest precede real byte integrity and si
 test("handoff: reported success without response EOF does not open byte stage", async () => {
   const data = handoffFixture();
   const handoff = make(data);
-  const source = stream([encode(data.events.map((e) => JSON.stringify(e) + "\n").join(""))], {
-    pull(controller) {
-      if (!this.sent) { this.sent = true; controller.enqueue(encode(data.events.map((e) => JSON.stringify(e) + "\n").join(""))); }
+  const source = stream(
+    [encode(data.events.map((e) => JSON.stringify(e) + "\n").join(""))],
+    {
+      pull(controller) {
+        if (!this.sent) {
+          this.sent = true;
+          controller.enqueue(
+            encode(data.events.map((e) => JSON.stringify(e) + "\n").join("")),
+          );
+        }
+      },
     },
-  });
+  );
   const pending = handoff.observe(source);
   await tick();
-  assert.equal(handoff.getSnapshot().producer.observation.reported_state, "succeeded");
+  assert.equal(
+    handoff.getSnapshot().producer.observation.reported_state,
+    "succeeded",
+  );
   assert.equal(handoff.getSnapshot().status, "observing");
   const untouched = stream([data.bytes]);
   await assert.rejects(handoff.readArtifact(untouched), /not awaiting/);
@@ -99,15 +120,36 @@ for (const type of ["run.failed", "run.cancelled", "run.unknown"]) {
       data.events.push(data.event("run.cancelled", 4));
     }
     const { handoff, result } = await observed(data);
-    denied(handoff, result, type === "run.unknown" ? "producer_stream_rejected" : "producer_not_succeeded");
+    denied(
+      handoff,
+      result,
+      type === "run.unknown"
+        ? "producer_stream_rejected"
+        : "producer_not_succeeded",
+    );
   });
 }
 for (const [name, change] of [
   ["early EOF", (d) => d.events.pop()],
-  ["unsolicited cancellation", (d) => { d.events[2] = d.event("run.cancelled", 3); }],
+  [
+    "unsolicited cancellation",
+    (d) => {
+      d.events[2] = d.event("run.cancelled", 3);
+    },
+  ],
   ["sequence gap", (d) => d.events.splice(1, 1)],
-  ["same event ID with different content", (d) => { d.events[2].event_id = d.events[1].event_id; }],
-  ["wrong stream attempt", (d) => { d.events[0].attempt_id = handoffId(333); }],
+  [
+    "same event ID with different content",
+    (d) => {
+      d.events[2].event_id = d.events[1].event_id;
+    },
+  ],
+  [
+    "wrong stream attempt",
+    (d) => {
+      d.events[0].attempt_id = handoffId(333);
+    },
+  ],
 ]) {
   test(`handoff: rejects producer ${name}`, async () => {
     const data = handoffFixture();
@@ -120,7 +162,11 @@ for (const tail of ['{"truncated":', "bad\n", "\n"]) {
   test(`handoff: bad tail ${JSON.stringify(tail)} overrides an earlier success report`, async () => {
     const data = handoffFixture();
     const handoff = make(data);
-    denied(handoff, await handoff.observe(wire(data.events, tail)), "producer_stream_rejected");
+    denied(
+      handoff,
+      await handoff.observe(wire(data.events, tail)),
+      "producer_stream_rejected",
+    );
   });
 }
 test("handoff: exact event replay is accepted without double observation", async () => {
@@ -139,12 +185,47 @@ test("handoff: success naming another manifest is rejected", async () => {
   denied(handoff, result, "manifest_mismatch");
 });
 for (const [name, change] of [
-  ["not observed", (d) => { d.events = [d.events[0], d.event("run.succeeded", 2)]; }],
-  ["different hash", (d) => { d.events[1].payload.artifact.sha256 = "0".repeat(64); }],
-  ["different revision", (d) => { d.events[1].payload.artifact.revision++; }],
-  ["different ID", (d) => { d.events[1].payload.artifact.artifact_id = handoffId(789); }],
-  ["unreported manifest entry", (d) => { const extra = structuredClone(d.manifest.artifacts[0]); extra.ref.artifact_id = handoffId(789); d.manifest.artifacts.push(extra); }],
-  ["omitted observed entry", (d) => { const extra = structuredClone(d.events[1].payload.artifact); extra.artifact_id = handoffId(789); d.events[2] = d.event("artifact.produced", 3, { artifact: extra }); d.events.push(d.event("run.succeeded", 4)); }],
+  [
+    "not observed",
+    (d) => {
+      d.events = [d.events[0], d.event("run.succeeded", 2)];
+    },
+  ],
+  [
+    "different hash",
+    (d) => {
+      d.events[1].payload.artifact.sha256 = "0".repeat(64);
+    },
+  ],
+  [
+    "different revision",
+    (d) => {
+      d.events[1].payload.artifact.revision++;
+    },
+  ],
+  [
+    "different ID",
+    (d) => {
+      d.events[1].payload.artifact.artifact_id = handoffId(789);
+    },
+  ],
+  [
+    "unreported manifest entry",
+    (d) => {
+      const extra = structuredClone(d.manifest.artifacts[0]);
+      extra.ref.artifact_id = handoffId(789);
+      d.manifest.artifacts.push(extra);
+    },
+  ],
+  [
+    "omitted observed entry",
+    (d) => {
+      const extra = structuredClone(d.events[1].payload.artifact);
+      extra.artifact_id = handoffId(789);
+      d.events[2] = d.event("artifact.produced", 3, { artifact: extra });
+      d.events.push(d.event("run.succeeded", 4));
+    },
+  ],
 ]) {
   test(`handoff: exact produced set rejects ${name}`, async () => {
     const data = handoffFixture();
@@ -173,15 +254,60 @@ for (const key of ["org_id", "run_id", "attempt_id"]) {
   });
 }
 for (const [name, change] of [
-  ["consumer organization", (d) => { d.consumer.org_id = handoffId(3); }],
-  ["consumer source kind", (d) => { d.consumer.execution_kind = "provider"; }],
-  ["producer source kind", (d) => { d.producer.execution_kind = "provider"; }],
-  ["consumer revision", (d) => { d.consumer.input_artifacts[0].revision++; }],
-  ["consumer hash", (d) => { d.consumer.input_artifacts[0].sha256 = "0".repeat(64); }],
-  ["consumer producer attempt", (d) => { d.consumer.input_artifacts[0].producer.attempt_id = handoffId(6); }],
-  ["missing selected input", (d) => { d.consumer.input_artifacts = []; }],
-  ["unknown artifact ID", (d) => { d.id = handoffId(7); }],
-  ["larger than inherited byte cap", (d) => { d.manifest.artifacts[0].size_bytes = 4194305; }],
+  [
+    "consumer organization",
+    (d) => {
+      d.consumer.org_id = handoffId(3);
+    },
+  ],
+  [
+    "consumer source kind",
+    (d) => {
+      d.consumer.execution_kind = "provider";
+    },
+  ],
+  [
+    "producer source kind",
+    (d) => {
+      d.producer.execution_kind = "provider";
+    },
+  ],
+  [
+    "consumer revision",
+    (d) => {
+      d.consumer.input_artifacts[0].revision++;
+    },
+  ],
+  [
+    "consumer hash",
+    (d) => {
+      d.consumer.input_artifacts[0].sha256 = "0".repeat(64);
+    },
+  ],
+  [
+    "consumer producer attempt",
+    (d) => {
+      d.consumer.input_artifacts[0].producer.attempt_id = handoffId(6);
+    },
+  ],
+  [
+    "missing selected input",
+    (d) => {
+      d.consumer.input_artifacts = [];
+    },
+  ],
+  [
+    "unknown artifact ID",
+    (d) => {
+      d.id = handoffId(7);
+    },
+  ],
+  [
+    "larger than inherited byte cap",
+    (d) => {
+      d.manifest.artifacts[0].size_bytes = 4194305;
+    },
+  ],
 ]) {
   test(`handoff: construction rejects ${name}`, () => {
     const data = handoffFixture();
@@ -192,7 +318,13 @@ for (const [name, change] of [
 test("handoff: public protocol snapshots do not execute getter inputs", () => {
   const data = handoffFixture();
   let calls = 0;
-  Object.defineProperty(data.manifest, "manifest_id", { enumerable: true, get() { calls++; return "secret"; } });
+  Object.defineProperty(data.manifest, "manifest_id", {
+    enumerable: true,
+    get() {
+      calls++;
+      return "secret";
+    },
+  });
   assert.throws(() => make(data), TypeError);
   assert.equal(calls, 0);
 });
@@ -202,8 +334,14 @@ test("handoff: constructor snapshots survive caller mutations", async () => {
   data.producer.run_id = handoffId(3);
   data.consumer.input_artifacts[0].sha256 = "0".repeat(64);
   data.manifest.manifest_id = handoffId(4);
-  assert.equal((await handoff.observe(wire(data.events))).status, "awaiting_bytes");
-  assert.equal((await handoff.readArtifact(stream([data.bytes]))).status, "ready");
+  assert.equal(
+    (await handoff.observe(wire(data.events))).status,
+    "awaiting_bytes",
+  );
+  assert.equal(
+    (await handoff.readArtifact(stream([data.bytes]))).status,
+    "ready",
+  );
   assert.deepEqual(handoff.takeBytes().bytes, data.bytes);
 });
 test("handoff: provider-labelled declarations never become authentication or authorization", async () => {
@@ -225,13 +363,26 @@ for (const [name, chunks] of [
 ]) {
   test(`handoff: artifact ${name} cannot be taken`, async () => {
     const { handoff, data } = await observed();
-    denied(handoff, await handoff.readArtifact(stream(chunks(data))), "artifact_rejected");
-    await assert.rejects(handoff.readArtifact(stream([data.bytes])), /not awaiting/);
+    denied(
+      handoff,
+      await handoff.readArtifact(stream(chunks(data))),
+      "artifact_rejected",
+    );
+    await assert.rejects(
+      handoff.readArtifact(stream([data.bytes])),
+      /not awaiting/,
+    );
   });
 }
 test("handoff: source error is redacted and leaves no deliverable partial bytes", async () => {
   const { handoff } = await observed();
-  const result = await handoff.readArtifact(stream([], { pull(controller) { controller.error(new Error("private-data")); } }));
+  const result = await handoff.readArtifact(
+    stream([], {
+      pull(controller) {
+        controller.error(new Error("private-data"));
+      },
+    }),
+  );
   denied(handoff, result, "artifact_rejected");
   assert.equal(result.artifact.fault, "transport_lost");
   assert.equal(JSON.stringify(result).includes("private-data"), false);
@@ -257,7 +408,14 @@ test("handoff: pre-abort and closed calls never acquire or inspect a source", as
   const handoff = make();
   const abort = new AbortController();
   abort.abort("private-data");
-  const source = new Proxy({}, { get() { throw new Error("source must not be read"); } });
+  const source = new Proxy(
+    {},
+    {
+      get() {
+        throw new Error("source must not be read");
+      },
+    },
+  );
   assert.equal((await handoff.observe(source, abort.signal)).status, "closed");
   assert.equal((await handoff.readArtifact(source)).status, "closed");
   assert.equal((await handoff.observe(source)).status, "closed");
@@ -271,12 +429,22 @@ for (const phase of ["observing", "awaiting_bytes", "reading_bytes", "ready"]) {
     let pending;
     let source;
     if (phase === "observing") {
-      source = stream([], { pull() {}, cancel() { return new Promise(() => {}); } });
+      source = stream([], {
+        pull() {},
+        cancel() {
+          return new Promise(() => {});
+        },
+      });
       pending = handoff.observe(source, abort.signal);
     } else {
       await handoff.observe(wire(data.events), abort.signal);
       if (phase === "reading_bytes") {
-        source = stream([], { pull() {}, cancel() { return new Promise(() => {}); } });
+        source = stream([], {
+          pull() {},
+          cancel() {
+            return new Promise(() => {});
+          },
+        });
         pending = handoff.readArtifact(source);
       } else if (phase === "ready") {
         await handoff.readArtifact(stream([data.bytes]));
@@ -297,7 +465,10 @@ for (const phase of ["observing", "awaiting_bytes", "reading_bytes", "ready"]) {
 test("handoff: cancellation during digest cannot be undone by late crypto completion", async () => {
   const original = crypto.subtle.digest;
   let resolveDigest;
-  crypto.subtle.digest = () => new Promise((resolve) => { resolveDigest = resolve; });
+  crypto.subtle.digest = () =>
+    new Promise((resolve) => {
+      resolveDigest = resolve;
+    });
   try {
     const abort = new AbortController();
     const { handoff, data } = await observed(handoffFixture(), abort.signal);
@@ -310,7 +481,9 @@ test("handoff: cancellation during digest cannot be undone by late crypto comple
     await tick();
     assert.equal(handoff.getSnapshot().status, "closed");
     assert.throws(() => handoff.takeBytes(), /not available/);
-  } finally { crypto.subtle.digest = original; }
+  } finally {
+    crypto.subtle.digest = original;
+  }
 });
 test("handoff: take detaches lifetime abort and close cannot erase transferred bytes", async () => {
   const abort = new AbortController();
@@ -323,7 +496,11 @@ test("handoff: take detaches lifetime abort and close cannot erase transferred b
 });
 
 async function peer(t, mode, scenario = "normal") {
-  const child = fork(new URL("./fixtures/runtime-handoff-peer.mjs", import.meta.url), [mode, scenario], { stdio: ["ignore", "ignore", "pipe", "ipc"] });
+  const child = fork(
+    new URL("./fixtures/runtime-handoff-peer.mjs", import.meta.url),
+    [mode, scenario],
+    { stdio: ["ignore", "ignore", "pipe", "ipc"] },
+  );
   child.stderr.resume();
   t.after(async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
@@ -334,49 +511,74 @@ async function peer(t, mode, scenario = "normal") {
   return child;
 }
 for (const scenario of ["normal", "corrupt", "no_success", "wrong_manifest"]) {
-  test(`handoff: real process/HTTP composition ${scenario}`, { timeout: 15000 }, async (t) => {
-    const producer = await peer(t, "producer", scenario);
-    const [endpoint] = await once(producer, "message");
-    assert.ok(Number.isInteger(endpoint.port) && endpoint.port > 0);
-    const base = `http://127.0.0.1:${endpoint.port}`;
-    const data = handoffFixture();
-    const manifestResponse = await fetch(`${base}/manifest`, { redirect: "error" });
-    assert.equal(manifestResponse.status, 200);
-    data.manifest = await manifestResponse.json();
-    const handoff = make(data);
-    t.after(() => handoff.close());
-    const response = await fetch(`${base}/events`, { redirect: "error" });
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("content-type"), "application/x-ndjson");
-    await handoff.observe(response.body);
-    let consumerCreated = false;
-    if (handoff.getSnapshot().status === "awaiting_bytes") {
-      const artifact = await fetch(`${base}/artifact`, { redirect: "error" });
-      assert.equal(artifact.status, 200);
-      assert.equal(artifact.headers.get("content-type"), "application/octet-stream");
-      await handoff.readArtifact(artifact.body);
-    }
-    if (handoff.getSnapshot().status === "ready") {
-      const delivery = handoff.takeBytes();
-      const consumer = await peer(t, "consumer");
-      consumerCreated = true;
-      const reply = once(consumer, "message");
-      const exit = once(consumer, "exit");
-      consumer.send({ bytes: [...delivery.bytes], expected_sha256: delivery.binding.artifact.ref.sha256 });
-      const [result] = await reply;
-      assert.equal(result.consumed_sha256, data.manifest.artifacts[0].ref.sha256);
-      assert.equal(result.total, 16);
-      assert.equal(result.count, 3);
-      assert.notEqual(result.pid, endpoint.pid);
-      assert.notEqual(result.pid, process.pid);
-      assert.deepEqual(await exit, [0, null]);
-    }
-    const statsReply = once(producer, "message");
-    producer.send("stats");
-    const [stats] = await statsReply;
-    assert.equal(stats.byteRequests, ["normal", "corrupt"].includes(scenario) ? 1 : 0);
-    assert.equal(consumerCreated, scenario === "normal");
-    assert.equal(handoff.getSnapshot().status, scenario === "normal" ? "taken" : "rejected");
-    if (scenario !== "normal") assert.throws(() => handoff.takeBytes(), /not available/);
-  });
+  test(
+    `handoff: real process/HTTP composition ${scenario}`,
+    { timeout: 15000 },
+    async (t) => {
+      const producer = await peer(t, "producer", scenario);
+      const [endpoint] = await once(producer, "message");
+      assert.ok(Number.isInteger(endpoint.port) && endpoint.port > 0);
+      const base = `http://127.0.0.1:${endpoint.port}`;
+      const data = handoffFixture();
+      const manifestResponse = await fetch(`${base}/manifest`, {
+        redirect: "error",
+      });
+      assert.equal(manifestResponse.status, 200);
+      data.manifest = await manifestResponse.json();
+      const handoff = make(data);
+      t.after(() => handoff.close());
+      const response = await fetch(`${base}/events`, { redirect: "error" });
+      assert.equal(response.status, 200);
+      assert.equal(
+        response.headers.get("content-type"),
+        "application/x-ndjson",
+      );
+      await handoff.observe(response.body);
+      let consumerCreated = false;
+      if (handoff.getSnapshot().status === "awaiting_bytes") {
+        const artifact = await fetch(`${base}/artifact`, { redirect: "error" });
+        assert.equal(artifact.status, 200);
+        assert.equal(
+          artifact.headers.get("content-type"),
+          "application/octet-stream",
+        );
+        await handoff.readArtifact(artifact.body);
+      }
+      if (handoff.getSnapshot().status === "ready") {
+        const delivery = handoff.takeBytes();
+        const consumer = await peer(t, "consumer");
+        consumerCreated = true;
+        const reply = once(consumer, "message");
+        const exit = once(consumer, "exit");
+        consumer.send({
+          bytes: [...delivery.bytes],
+          expected_sha256: delivery.binding.artifact.ref.sha256,
+        });
+        const [result] = await reply;
+        assert.equal(
+          result.consumed_sha256,
+          data.manifest.artifacts[0].ref.sha256,
+        );
+        assert.equal(result.total, 16);
+        assert.equal(result.count, 3);
+        assert.notEqual(result.pid, endpoint.pid);
+        assert.notEqual(result.pid, process.pid);
+        assert.deepEqual(await exit, [0, null]);
+      }
+      const statsReply = once(producer, "message");
+      producer.send("stats");
+      const [stats] = await statsReply;
+      assert.equal(
+        stats.byteRequests,
+        ["normal", "corrupt"].includes(scenario) ? 1 : 0,
+      );
+      assert.equal(consumerCreated, scenario === "normal");
+      assert.equal(
+        handoff.getSnapshot().status,
+        scenario === "normal" ? "taken" : "rejected",
+      );
+      if (scenario !== "normal")
+        assert.throws(() => handoff.takeBytes(), /not available/);
+    },
+  );
 }

@@ -155,8 +155,9 @@ export class RuntimeArtifactHandoff {
     else if (observation.manifest_id !== this.#binding!.manifest_id)
       this.reject("manifest_mismatch");
     else if (
-      JSON.stringify(observation.artifacts.map((ref) => JSON.stringify(ref)).sort()) !==
-      JSON.stringify(this.#expectedRefs)
+      JSON.stringify(
+        observation.artifacts.map((ref) => JSON.stringify(ref)).sort(),
+      ) !== JSON.stringify(this.#expectedRefs)
     )
       this.reject("artifact_set_mismatch");
     else this.#status = "awaiting_bytes";
