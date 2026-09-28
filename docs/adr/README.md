@@ -34,6 +34,7 @@
 | ADR-032：终端交接包只读检查 | [决定与状态](ADR-032-terminal-runtime-inspection.md) |
 | ADR-033：本地 Git 固定提交只读端口 | [决定与状态](ADR-033-local-git-read-port.md) |
 | ADR-034：本地工作树原始观察 | [决定与状态](ADR-034-local-worktree-observation.md) |
+| ADR-035｜固定提交直接树比较与逐文件披露 | [阅读](ADR-035-fixed-commit-comparison.md) |
 
 ## 仅有规划占位的提案
 

@@ -60,3 +60,7 @@ A不实现完整RepositoryPort的远端连接/项目关系/组织授权，也不
 ## 可选工作树观察（B）
 
 旧 inspect/readFile 仍只读提交内容。需要检查本地未暂存差异时，显式调用新 inspectWorktree；新增 maxWorktreeBytes 仅限制该模式的聚合读取。范围与命令见 [工作树指南](local-worktree.md)，不能把其原始字节观察当成 Git status 或写入授权。
+
+## 两个固定提交之间的差异
+
+[C 的提交比较指南](local-commit-comparison.md)提供双完整 SHA 的变更清单和逐文件文本 hunks；默认不披露正文、不依赖当前 HEAD，也不授予审查或合并权限。

@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { observeLocalWorktree } from "./local-worktree.mjs";
+import { compareLocalCommits } from "./local-commit-comparison.mjs";
 
 export const LOCAL_REPOSITORY_LIMITS = Object.freeze({
   timeoutMs: 30000,
@@ -11,6 +12,9 @@ export const LOCAL_REPOSITORY_LIMITS = Object.freeze({
   maxOutputBytes: 2097152,
   maxBlobBytes: 4194304,
   maxWorktreeBytes: 16777216,
+  maxDiffLines: 4000,
+  maxDiffCells: 2000000,
+  maxDiffBytes: 1048576,
 });
 class RepositoryFault extends Error {
   constructor(code) {
@@ -114,18 +118,26 @@ export function createLocalRepositoryPort(directory, options = {}) {
     limits[key] = d.value;
   }
   const selected = path.resolve(directory);
-  async function perform(file, signal, worktreeCommit = null) {
+  async function perform(
+    file,
+    signal,
+    worktreeCommit = null,
+    comparison = null,
+  ) {
     const inspectWorktree = worktreeCommit !== null;
     const result = {
       report_version: "1.0.0",
-      scope: inspectWorktree
-        ? "local_git_worktree_observation"
-        : "local_git_committed_snapshot",
+      scope: comparison
+        ? "local_git_commit_comparison"
+        : inspectWorktree
+          ? "local_git_worktree_observation"
+          : "local_git_committed_snapshot",
       status: "rejected",
       authorization: false,
       source: "local_git",
       working_tree: inspectWorktree ? null : "not_inspected",
       snapshot: null,
+      ...(comparison ? { comparison: null } : {}),
       fault: null,
     };
     let bytes = null;
@@ -228,79 +240,7 @@ export function createLocalRepositoryPort(directory, options = {}) {
         r.output.fill(0);
       }
     };
-    try {
-      if (process.platform !== "linux") fail("unsupported_platform");
-      if (signal !== undefined && !(signal instanceof AbortSignal))
-        fail("invalid_arguments");
-      if (
-        file &&
-        (!relativePath(file.path) ||
-          !(
-            oid(file.expectedCommit, "sha1") ||
-            oid(file.expectedCommit, "sha256")
-          ))
-      )
-        fail("invalid_arguments");
-      if (
-        inspectWorktree &&
-        !(oid(worktreeCommit, "sha1") || oid(worktreeCommit, "sha256"))
-      )
-        fail("invalid_arguments");
-      check();
-      const rootStat = await fs.lstat(selected, { bigint: true });
-      check();
-      if (!rootStat.isDirectory() || rootStat.isSymbolicLink())
-        fail("invalid_repository_root");
-      const root = await fs.realpath(selected);
-      check();
-      const bareValue = (await text(["rev-parse", "--is-bare-repository"]))
-        .value;
-      if (!["true", "false"].includes(bareValue)) fail("invalid_git_output");
-      const bare = bareValue === "true";
-      if (inspectWorktree && bare) fail("worktree_not_applicable");
-      const gitDirectory = (await text(["rev-parse", "--absolute-git-dir"]))
-        .value;
-      const gitRoot = await fs.realpath(gitDirectory);
-      const gitStat = await fs.stat(gitRoot, { bigint: true });
-      check();
-      const actualRoot = bare
-        ? gitRoot
-        : await fs.realpath(
-            (await text(["rev-parse", "--show-toplevel"])).value,
-          );
-      if (root !== actualRoot) fail("invalid_repository_root");
-      const algorithm = (await text(["rev-parse", "--show-object-format"]))
-        .value;
-      if (!["sha1", "sha256"].includes(algorithm))
-        fail("unsupported_object_format");
-      const head = async () => {
-        const r = await text(
-          [
-            "rev-parse",
-            "--verify",
-            "--quiet",
-            "--end-of-options",
-            "HEAD^{commit}",
-          ],
-          [0, 1],
-        );
-        if (r.code !== 0) fail("no_head_commit");
-        if (!oid(r.value, algorithm)) fail("invalid_git_output");
-        return r.value;
-      };
-      const commit = await head();
-      if (file && file.expectedCommit !== commit) fail("stale_baseline");
-      if (inspectWorktree && worktreeCommit !== commit) fail("stale_baseline");
-      const branchValue = await text(
-        ["symbolic-ref", "--quiet", "HEAD"],
-        [0, 1],
-      );
-      const branch = branchValue.code === 1 ? null : branchValue.value;
-      if (branch !== null && !/^refs\/heads\/[^\x00-\x20\x7f]+$/.test(branch))
-        fail("invalid_git_output");
-      const tree = (await text(["rev-parse", "--verify", `${commit}^{tree}`]))
-        .value;
-      if (!oid(tree, algorithm)) fail("invalid_git_output");
+    const readTree = async (tree, algorithm) => {
       const raw = (
         await run(["ls-tree", "-r", "-l", "-z", "--full-tree", tree])
       ).output;
@@ -351,6 +291,130 @@ export function createLocalRepositoryPort(directory, options = {}) {
       } finally {
         raw.fill(0);
       }
+      return entries;
+    };
+    try {
+      if (process.platform !== "linux") fail("unsupported_platform");
+      if (signal !== undefined && !(signal instanceof AbortSignal))
+        fail("invalid_arguments");
+      if (
+        file &&
+        (!relativePath(file.path) ||
+          !(
+            oid(file.expectedCommit, "sha1") ||
+            oid(file.expectedCommit, "sha256")
+          ))
+      )
+        fail("invalid_arguments");
+      if (
+        inspectWorktree &&
+        !(oid(worktreeCommit, "sha1") || oid(worktreeCommit, "sha256"))
+      )
+        fail("invalid_arguments");
+      if (
+        comparison &&
+        (!(oid(comparison.base, "sha1") || oid(comparison.base, "sha256")) ||
+          !(oid(comparison.head, "sha1") || oid(comparison.head, "sha256")) ||
+          (comparison.path !== null && !relativePath(comparison.path)))
+      )
+        fail("invalid_arguments");
+      check();
+      const rootStat = await fs.lstat(selected, { bigint: true });
+      check();
+      if (!rootStat.isDirectory() || rootStat.isSymbolicLink())
+        fail("invalid_repository_root");
+      const root = await fs.realpath(selected);
+      check();
+      const bareValue = (await text(["rev-parse", "--is-bare-repository"]))
+        .value;
+      if (!["true", "false"].includes(bareValue)) fail("invalid_git_output");
+      const bare = bareValue === "true";
+      if (inspectWorktree && bare) fail("worktree_not_applicable");
+      const gitDirectory = (await text(["rev-parse", "--absolute-git-dir"]))
+        .value;
+      const gitRoot = await fs.realpath(gitDirectory);
+      const gitStat = await fs.stat(gitRoot, { bigint: true });
+      check();
+      const actualRoot = bare
+        ? gitRoot
+        : await fs.realpath(
+            (await text(["rev-parse", "--show-toplevel"])).value,
+          );
+      if (root !== actualRoot) fail("invalid_repository_root");
+      const algorithm = (await text(["rev-parse", "--show-object-format"]))
+        .value;
+      if (!["sha1", "sha256"].includes(algorithm))
+        fail("unsupported_object_format");
+      const verifyIdentity = async () => {
+        if (
+          (await text(["rev-parse", "--absolute-git-dir"])).value !==
+          gitDirectory
+        )
+          fail("repository_changed");
+        const rootAfter = await fs.lstat(selected, { bigint: true });
+        const gitAfter = await fs.stat(gitRoot, { bigint: true });
+        check();
+        if (
+          !rootAfter.isDirectory() ||
+          rootAfter.dev !== rootStat.dev ||
+          rootAfter.ino !== rootStat.ino ||
+          !gitAfter.isDirectory() ||
+          gitAfter.dev !== gitStat.dev ||
+          gitAfter.ino !== gitStat.ino
+        )
+          fail("repository_changed");
+      };
+      if (comparison) {
+        if (
+          !oid(comparison.base, algorithm) ||
+          !oid(comparison.head, algorithm)
+        )
+          fail("invalid_arguments");
+        const value = await compareLocalCommits({
+          request: comparison,
+          algorithm,
+          bare,
+          readTree,
+          run,
+          text,
+          limits,
+          check,
+          fail,
+        });
+        await verifyIdentity();
+        result.status = "compared";
+        result.comparison = value;
+        return { report: freeze(result), bytes: null };
+      }
+      const head = async () => {
+        const r = await text(
+          [
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            "--end-of-options",
+            "HEAD^{commit}",
+          ],
+          [0, 1],
+        );
+        if (r.code !== 0) fail("no_head_commit");
+        if (!oid(r.value, algorithm)) fail("invalid_git_output");
+        return r.value;
+      };
+      const commit = await head();
+      if (file && file.expectedCommit !== commit) fail("stale_baseline");
+      if (inspectWorktree && worktreeCommit !== commit) fail("stale_baseline");
+      const branchValue = await text(
+        ["symbolic-ref", "--quiet", "HEAD"],
+        [0, 1],
+      );
+      const branch = branchValue.code === 1 ? null : branchValue.value;
+      if (branch !== null && !/^refs\/heads\/[^\x00-\x20\x7f]+$/.test(branch))
+        fail("invalid_git_output");
+      const tree = (await text(["rev-parse", "--verify", `${commit}^{tree}`]))
+        .value;
+      if (!oid(tree, algorithm)) fail("invalid_git_output");
+      const entries = await readTree(tree, algorithm);
       // Index-only comparison: never run worktree status/clean filters or textconv.
       let indexState = "not_applicable";
       const compareIndex = async () => {
@@ -420,22 +484,7 @@ export function createLocalRepositoryPort(directory, options = {}) {
         branchAfter.value !== branchValue.value
       )
         fail("stale_baseline");
-      if (
-        (await text(["rev-parse", "--absolute-git-dir"])).value !== gitDirectory
-      )
-        fail("repository_changed");
-      const rootAfter = await fs.lstat(selected, { bigint: true });
-      const gitAfter = await fs.stat(gitRoot, { bigint: true });
-      check();
-      if (
-        !rootAfter.isDirectory() ||
-        rootAfter.dev !== rootStat.dev ||
-        rootAfter.ino !== rootStat.ino ||
-        !gitAfter.isDirectory() ||
-        gitAfter.dev !== gitStat.dev ||
-        gitAfter.ino !== gitStat.ino
-      )
-        fail("repository_changed");
+      await verifyIdentity();
       result.status = "inspected";
       result.working_tree = workingTree;
       result.snapshot = {
@@ -470,6 +519,24 @@ export function createLocalRepositoryPort(directory, options = {}) {
     },
     async inspectWorktree(expectedCommit, signal) {
       return (await perform(null, signal, expectedCommit ?? false)).report;
+    },
+    async compareCommits(baseCommit, headCommit, signal) {
+      return (
+        await perform(null, signal, null, {
+          base: baseCommit,
+          head: headCommit,
+          path: null,
+        })
+      ).report;
+    },
+    async readCommitDiff(baseCommit, headCommit, filePath, signal) {
+      return (
+        await perform(null, signal, null, {
+          base: baseCommit,
+          head: headCommit,
+          path: filePath ?? false,
+        })
+      ).report;
     },
     async readFile(expectedCommit, filePath, signal) {
       return perform({ expectedCommit, path: filePath }, signal);

@@ -35,5 +35,6 @@
 | ZT03-02-A｜内容摘要与版本命令基础库 | [阅读](version-primitives.md) |
 | ZT04-02｜组织深链与授权导航 | [阅读](workbench-navigation.md) |
 | 本地工作树原始观察（ZT18-01-B） | [阅读](local-worktree.md) |
+| 固定提交差异与逐文件正文（ZT18-01-C） | [阅读](local-commit-comparison.md) |
 
 测试命令与证据要求统一见 [验证路由](../harness/verification.md)。设计理由查 [ADR](../adr/README.md)，不复制到这里。
