@@ -37,5 +37,6 @@
 | 本地工作树原始观察（ZT18-01-B） | [阅读](local-worktree.md) |
 | 固定提交差异与逐文件正文（ZT18-01-C） | [阅读](local-commit-comparison.md) |
 | Studio 本地代码变更审阅 | [阅读](studio-code-review.md) |
+| 文件审阅意见与本地交接 | [阅读](local-review-notes.md) |
 
 测试命令与证据要求统一见 [验证路由](../harness/verification.md)。设计理由查 [ADR](../adr/README.md)，不复制到这里。
