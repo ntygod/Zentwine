@@ -116,3 +116,8 @@ export type {
   RuntimeInputBundleSnapshot,
   RuntimeInputBundleDelivery,
 } from "./runtime-input-bundle.js";
+
+export {
+  createRuntimeInputInspection,
+  RUNTIME_INSPECTION_PLAN_BYTES,
+} from "./runtime-inspection-plan.js";
