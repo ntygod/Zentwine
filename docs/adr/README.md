@@ -33,6 +33,7 @@
 | ADR-031：先把交接检查接入 Studio 的显式本地入口 | [决定与状态](ADR-031-studio-local-inspection.md) |
 | ADR-032：终端交接包只读检查 | [决定与状态](ADR-032-terminal-runtime-inspection.md) |
 | ADR-033：本地 Git 固定提交只读端口 | [决定与状态](ADR-033-local-git-read-port.md) |
+| ADR-034：本地工作树原始观察 | [决定与状态](ADR-034-local-worktree-observation.md) |
 
 ## 仅有规划占位的提案
 

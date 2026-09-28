@@ -56,3 +56,7 @@ finally { result.bytes.fill(0); }
 A不实现完整RepositoryPort的远端连接/项目关系/组织授权，也不将本机文件权限替代服务端权限。原 ZT03-02-B、Issue #32/#35 与 Draft PR #33 仍阻断持久联调。
 
 官方语义参考：[Git 全局参数与环境](https://git-scm.com/docs/git)、[ls-tree NUL/完整树输出](https://git-scm.com/docs/git-ls-tree)、[cat-file 原始对象](https://git-scm.com/docs/git-cat-file)、[status 的工作树与index区别](https://git-scm.com/docs/git-status)。实际兼容证据以本仓库测试版本为准，不依据文档声称所有版本都支持。
+
+## 可选工作树观察（B）
+
+旧 inspect/readFile 仍只读提交内容。需要检查本地未暂存差异时，显式调用新 inspectWorktree；新增 maxWorktreeBytes 仅限制该模式的聚合读取。范围与命令见 [工作树指南](local-worktree.md)，不能把其原始字节观察当成 Git status 或写入授权。

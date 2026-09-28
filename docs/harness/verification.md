@@ -29,7 +29,7 @@ pnpm docs:check
 | 数据库/迁移 | `pnpm migration-check`、`pnpm test:migrations`、`pnpm test:tenant-integration` 及业务套件 | 临时合成库、权限隔离；禁止绕过静态检查提前安装 |
 | 测试设施 | `pnpm test:fixtures`、`pnpm test:integration` | [测试指南](../development/testkit.md)；缺配置失败 |
 | Runtime wire/观察/交接 | `pnpm check`；涉及 UI 再跑浏览器 | 保留截断/重复/取消/预算等原测试；真实模型单独验收 |
-| 本机 Git 端口 | `node --test tests/local-repository.test.mjs` | 真实临时 Git/子进程；不是远端组织权限验收 |
+| 本机 Git 端口 | `node --test tests/local-repository.test.mjs tests/local-worktree.test.mjs` | 真实临时 Git/子进程；不是远端组织权限验收 |
 | 开发环境/持久实验 | `pnpm drill --suite database` 或 `pnpm drill --suite durability` | 显式准备合成设施；[环境指南](../development/local-environment.md) |
 
 数据库精确配置/启动清理以对应指南为准，不在此复制另一套凭据和环境名。`pnpm test:live` 单独报告真实模型状态，Fake 不算 live。权限矩阵严格验收仍保留缺通道阻断，不能降低模式消除失败。
