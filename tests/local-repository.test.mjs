@@ -453,10 +453,17 @@ test("repository reading preserves actual index config and HEAD bytes", async (t
 test("repository corrupt blob refuses a snapshot and partial content", async (t) => {
   const f = await fixture(t);
   const blob = git(f.root, "rev-parse", "HEAD:input.bin");
-  await fs.writeFile(
-    path.join(f.root, ".git", "objects", blob.slice(0, 2), blob.slice(2)),
-    "corrupt",
+  const objectPath = path.join(
+    f.root,
+    ".git",
+    "objects",
+    blob.slice(0, 2),
+    blob.slice(2),
   );
+  // Deliberately corrupt only this owned fixture, including under non-root CI.
+  await fs.chmod(objectPath, 0o600);
+  await fs.writeFile(objectPath, "corrupt");
+  assert.equal(await fs.readFile(objectPath, "utf8"), "corrupt");
   const r = await f.port.readFile(f.head, "input.bin");
   fault(r.report);
   assert.equal(r.bytes, null);
