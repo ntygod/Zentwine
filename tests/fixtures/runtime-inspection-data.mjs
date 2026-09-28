@@ -17,18 +17,30 @@ export function inspectionFixture() {
     event_id: handoffId(710 + i),
     run_id: second.producer.run_id,
     attempt_id: second.producer.attempt_id,
-    ...(event.type === "artifact.produced" ? { payload: { artifact: ref } } : {}),
-    ...(event.type === "run.succeeded" ? { payload: { manifest_id: second.manifest.manifest_id } } : {}),
+    ...(event.type === "artifact.produced"
+      ? { payload: { artifact: ref } }
+      : {}),
+    ...(event.type === "run.succeeded"
+      ? { payload: { manifest_id: second.manifest.manifest_id } }
+      : {}),
   }));
   const consumer = structuredClone(first.consumer);
-  consumer.input_artifacts = [structuredClone(ref), structuredClone(first.manifest.artifacts[0].ref)];
+  consumer.input_artifacts = [
+    structuredClone(ref),
+    structuredClone(first.manifest.artifacts[0].ref),
+  ];
   return {
     plan: {
       inspection_version: "1.0.0",
       consumer,
-      producers: [first, second].map((p) => ({ request: p.producer, manifest: p.manifest })),
+      producers: [first, second].map((p) => ({
+        request: p.producer,
+        manifest: p.manifest,
+      })),
     },
-    events: [first, second].map((p) => p.events.map((e) => JSON.stringify(e) + "\n").join("")),
+    events: [first, second].map((p) =>
+      p.events.map((e) => JSON.stringify(e) + "\n").join(""),
+    ),
     bytes: [second.bytes, first.bytes],
   };
 }

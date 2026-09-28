@@ -101,11 +101,15 @@ function Studio() {
           </section>
           {home && !inspecting && (
             <div className="inspection-launch">
-              <button onClick={() => setInspecting(true)}>检查本地交接包</button>
+              <button onClick={() => setInspecting(true)}>
+                检查本地交接包
+              </button>
               <span>本地诊断 · 不启动 Agent</span>
             </div>
           )}
-          {home && inspecting && <RuntimeInspector onClose={() => setInspecting(false)} />}
+          {home && inspecting && (
+            <RuntimeInspector onClose={() => setInspecting(false)} />
+          )}
           <section className="terminal" aria-label="运行区域">
             <div className="terminal-tabs">
               <span>终端</span>
