@@ -1,0 +1,61 @@
+name: Repository harness
+on:
+  push:
+    branches: [chore/repository-harness]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Snapshot tracked source and remote branch ancestry without mutations
+        shell: bash
+        run: |
+          mkdir -p /tmp/zentwine-inventory
+          git rev-parse HEAD > /tmp/zentwine-inventory/commit.txt
+          git rev-parse HEAD^{tree} > /tmp/zentwine-inventory/tree.txt
+          git archive --format=tar HEAD | gzip -n > /tmp/zentwine-inventory/source.tar.gz
+          python3 - <<'PY'
+          import json, subprocess, urllib.request
+          from pathlib import Path
+          destination = Path('/tmp/zentwine-inventory')
+          root = 'https://api.github.com/repos/ntygod/Zentwine/'
+          def pages(endpoint):
+              result = []
+              for page in range(1, 21):
+                  sep = '&' if '?' in endpoint else '?'
+                  req = urllib.request.Request(root + endpoint + sep + f'per_page=100&page={page}', headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'Zentwine-read-only-inventory'})
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      batch = json.load(response)
+                  if not isinstance(batch, list):
+                      raise ValueError('Expected a paginated list')
+                  result.extend(batch)
+                  if len(batch) < 100:
+                      return result
+              raise ValueError('Pagination limit reached; fail closed')
+          branches = pages('branches')
+          pulls = pages('pulls?state=all')
+          (destination / 'branches.json').write_text(json.dumps(branches, indent=2) + '\n')
+          compact = [{key: pr.get(key) for key in ('number', 'title', 'state', 'draft', 'merged_at', 'merge_commit_sha', 'head', 'base')} for pr in pulls]
+          (destination / 'pulls.json').write_text(json.dumps(compact, indent=2) + '\n')
+          protected = {pr['head']['ref'] for pr in pulls if pr['state'] == 'open'} | {pr['base']['ref'] for pr in pulls if pr['state'] == 'open'}
+          for branch in branches:
+              name, sha = branch['name'], branch['commit']['sha']
+              ancestral = subprocess.run(['git', 'merge-base', '--is-ancestor', sha, 'origin/main']).returncode
+              exact = [pr['number'] for pr in pulls if pr['merged_at'] and pr['head']['ref'] == name and pr['head']['sha'] == sha]
+              print(json.dumps({'branch': name, 'sha': sha, 'protected': branch['protected'], 'open_pr_reference': name in protected, 'ancestor_of_main': ancestral == 0, 'exact_merged_prs': exact}, ensure_ascii=False))
+          PY
+          sha256sum /tmp/zentwine-inventory/* > /tmp/zentwine-inventory/SHA256SUMS
+      - name: Upload read-only inventory
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: repository-inventory
+          path: /tmp/zentwine-inventory/
+          if-no-files-found: error
+          retention-days: 7
