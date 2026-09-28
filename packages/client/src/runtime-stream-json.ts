@@ -1,7 +1,11 @@
 /** Internal bounded JSON reader. Duplicate decoded keys are never silently replaced. */
 import { RUNTIME_WIRE_LIMITS } from "@zentwine/contracts";
 
-export function readRuntimeStreamJson(text: string): unknown {
+function readBoundedJson(
+  text: string,
+  maximumNodes: number,
+  maximumDepth: number,
+): unknown {
   let position = 0;
   let nodes = 0;
   const fail = (): never => {
@@ -23,11 +27,7 @@ export function readRuntimeStreamJson(text: string): unknown {
   };
   const number = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
   const read = (depth: number): unknown => {
-    if (
-      ++nodes > RUNTIME_WIRE_LIMITS.nodes ||
-      depth > RUNTIME_WIRE_LIMITS.depth
-    )
-      fail();
+    if (++nodes > maximumNodes || depth > maximumDepth) fail();
     space();
     const c = text[position];
     if (c === '"') return string();
@@ -98,4 +98,18 @@ export function readRuntimeStreamJson(text: string): unknown {
   space();
   if (position !== text.length) fail();
   return value;
+}
+
+// Original event/plan callers retain exactly their existing limits.
+export function readRuntimeStreamJson(text: string): unknown {
+  return readBoundedJson(
+    text,
+    RUNTIME_WIRE_LIMITS.nodes,
+    RUNTIME_WIRE_LIMITS.depth,
+  );
+}
+
+// Separate bounded import profile, not a relaxation of runtime wire limits.
+export function readRepositoryComparisonJson(text: string): unknown {
+  return readBoundedJson(text, 100000, 16);
 }

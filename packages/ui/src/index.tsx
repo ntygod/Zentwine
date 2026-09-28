@@ -111,3 +111,5 @@ export * from "./catalog-approval.js";
 export * from "./approval-inbox.js";
 
 export * from "./runtime-inspector.js";
+
+export * from "./repository-comparison-reviewer.js";

@@ -29,6 +29,7 @@ pnpm docs:check
 | 数据库/迁移 | `pnpm migration-check`、`pnpm test:migrations`、`pnpm test:tenant-integration` 及业务套件 | 临时合成库、权限隔离；禁止绕过静态检查提前安装 |
 | 测试设施 | `pnpm test:fixtures`、`pnpm test:integration` | [测试指南](../development/testkit.md)；缺配置失败 |
 | Runtime wire/观察/交接 | `pnpm check`；涉及 UI 再跑浏览器 | 保留截断/重复/取消/预算等原测试；真实模型单独验收 |
+| Studio 导入比较报告 | `node --test tests/repository-comparison-import.test.mjs`；`pnpm exec playwright test tests/browser/repository-comparison.spec.ts` | 先build；真实Git/CLI与浏览器，报告来源未认证 |
 | 本机 Git 端口 | `node --test tests/local-repository.test.mjs tests/local-worktree.test.mjs tests/local-commit-comparison.test.mjs` | 真实临时 Git/子进程；不是远端组织权限验收 |
 | 开发环境/持久实验 | `pnpm drill --suite database` 或 `pnpm drill --suite durability` | 显式准备合成设施；[环境指南](../development/local-environment.md) |
 

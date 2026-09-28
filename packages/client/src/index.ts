@@ -121,3 +121,5 @@ export {
   createRuntimeInputInspection,
   RUNTIME_INSPECTION_PLAN_BYTES,
 } from "./runtime-inspection-plan.js";
+
+export * from "./repository-comparison.js";
