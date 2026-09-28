@@ -3,12 +3,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { observeLocalWorktree } from "./local-worktree.mjs";
 
 export const LOCAL_REPOSITORY_LIMITS = Object.freeze({
   timeoutMs: 30000,
   maxEntries: 10000,
   maxOutputBytes: 2097152,
   maxBlobBytes: 4194304,
+  maxWorktreeBytes: 16777216,
 });
 class RepositoryFault extends Error {
   constructor(code) {
@@ -112,14 +114,17 @@ export function createLocalRepositoryPort(directory, options = {}) {
     limits[key] = d.value;
   }
   const selected = path.resolve(directory);
-  async function perform(file, signal) {
+  async function perform(file, signal, worktreeCommit = null) {
+    const inspectWorktree = worktreeCommit !== null;
     const result = {
       report_version: "1.0.0",
-      scope: "local_git_committed_snapshot",
+      scope: inspectWorktree
+        ? "local_git_worktree_observation"
+        : "local_git_committed_snapshot",
       status: "rejected",
       authorization: false,
       source: "local_git",
-      working_tree: "not_inspected",
+      working_tree: inspectWorktree ? null : "not_inspected",
       snapshot: null,
       fault: null,
     };
@@ -236,6 +241,11 @@ export function createLocalRepositoryPort(directory, options = {}) {
           ))
       )
         fail("invalid_arguments");
+      if (
+        inspectWorktree &&
+        !(oid(worktreeCommit, "sha1") || oid(worktreeCommit, "sha256"))
+      )
+        fail("invalid_arguments");
       check();
       const rootStat = await fs.lstat(selected, { bigint: true });
       check();
@@ -247,6 +257,7 @@ export function createLocalRepositoryPort(directory, options = {}) {
         .value;
       if (!["true", "false"].includes(bareValue)) fail("invalid_git_output");
       const bare = bareValue === "true";
+      if (inspectWorktree && bare) fail("worktree_not_applicable");
       const gitDirectory = (await text(["rev-parse", "--absolute-git-dir"]))
         .value;
       const gitRoot = await fs.realpath(gitDirectory);
@@ -279,6 +290,7 @@ export function createLocalRepositoryPort(directory, options = {}) {
       };
       const commit = await head();
       if (file && file.expectedCommit !== commit) fail("stale_baseline");
+      if (inspectWorktree && worktreeCommit !== commit) fail("stale_baseline");
       const branchValue = await text(
         ["symbolic-ref", "--quiet", "HEAD"],
         [0, 1],
@@ -341,7 +353,7 @@ export function createLocalRepositoryPort(directory, options = {}) {
       }
       // Index-only comparison: never run worktree status/clean filters or textconv.
       let indexState = "not_applicable";
-      if (!bare) {
+      const compareIndex = async () => {
         const diff = await run(
           [
             "diff-index",
@@ -358,8 +370,9 @@ export function createLocalRepositoryPort(directory, options = {}) {
           [0, 1],
         );
         diff.output.fill(0);
-        indexState = diff.code === 0 ? "matches_head" : "differs_from_head";
-      }
+        return diff.code === 0 ? "matches_head" : "differs_from_head";
+      };
+      if (!bare && !inspectWorktree) indexState = await compareIndex();
       let selectedFile = null;
       if (file) {
         const entry = entries.find((e) => e.path === file.path);
@@ -382,6 +395,20 @@ export function createLocalRepositoryPort(directory, options = {}) {
           sha256: createHash("sha256").update(bytes).digest("hex"),
         };
       }
+      const workingTree = inspectWorktree
+        ? await observeLocalWorktree({
+            root,
+            rootStat,
+            algorithm,
+            headEntries: entries,
+            compareIndex,
+            run,
+            limits,
+            check,
+            fail,
+          })
+        : "not_inspected";
+      if (inspectWorktree) indexState = workingTree.index_state;
       // Re-observe identity and HEAD, not an atomic filesystem snapshot or writer lease.
       if ((await head()) !== commit) fail("stale_baseline");
       const branchAfter = await text(
@@ -410,6 +437,7 @@ export function createLocalRepositoryPort(directory, options = {}) {
       )
         fail("repository_changed");
       result.status = "inspected";
+      result.working_tree = workingTree;
       result.snapshot = {
         object_format: algorithm,
         commit_sha: commit,
@@ -439,6 +467,9 @@ export function createLocalRepositoryPort(directory, options = {}) {
   return Object.freeze({
     async inspect(signal) {
       return (await perform(null, signal)).report;
+    },
+    async inspectWorktree(expectedCommit, signal) {
+      return (await perform(null, signal, expectedCommit ?? false)).report;
     },
     async readFile(expectedCommit, filePath, signal) {
       return perform({ expectedCommit, path: filePath }, signal);

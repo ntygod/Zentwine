@@ -38,5 +38,6 @@
 | ZT12-01 执行记录 | [阅读](ZT12-01-execution.md) |
 | ZT18-01-A 执行记录 | [阅读](ZT18-01-A-execution.md) |
 | ZT18-01 执行记录 | [阅读](ZT18-01-execution.md) |
+| ZT18-01-B｜本地工作树原始观察 | [执行记录](ZT18-01-B-execution.md) |
 
 完整通道尚未验收项见 [ZT02-06 跟进](zt02-06-acceptance-followup.md)。长流水保存在 [2026-09-28 状态快照](history/2026-09-28-status.md)。验收事实见 [报告索引](../testing/README.md)。
