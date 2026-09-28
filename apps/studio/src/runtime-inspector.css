@@ -68,3 +68,7 @@
     padding: 16px;
   }
 }
+/* Keep the keyboard skip link available without painting offscreen screenshot clips. */
+.studio-theme .skip:not(:focus) {
+  clip-path: inset(50%);
+}
