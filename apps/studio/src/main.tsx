@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AppBoundary,
@@ -8,11 +8,14 @@ import {
   ConnectionAlert,
   ConnectionBadge,
   useBootstrap,
+  RuntimeInspector,
 } from "@zentwine/ui";
 import { STUDIO_PATH, WORKBENCH_PATH } from "@zentwine/contracts";
 import "@zentwine/ui/styles.css";
+import "./runtime-inspector.css";
 function Studio() {
   const { connection, retry } = useBootstrap();
+  const [inspecting, setInspecting] = useState(false);
   const home =
     window.location.pathname === "/" ||
     window.location.pathname === STUDIO_PATH;
@@ -96,6 +99,13 @@ function Studio() {
               返回管理工作台
             </a>
           </section>
+          {home && !inspecting && (
+            <div className="inspection-launch">
+              <button onClick={() => setInspecting(true)}>检查本地交接包</button>
+              <span>本地诊断 · 不启动 Agent</span>
+            </div>
+          )}
+          {home && inspecting && <RuntimeInspector onClose={() => setInspecting(false)} />}
           <section className="terminal" aria-label="运行区域">
             <div className="terminal-tabs">
               <span>终端</span>

@@ -1,0 +1,27 @@
+/* Explicit local diagnostics; inherited light, dark and contrast tokens. */
+.inspection-launch, .inspection-controls, .inspection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.inspection-launch, .runtime-inspector { padding: 24px; }
+.runtime-inspector { border-top: 1px solid var(--zt-controlBorder); }
+.runtime-inspector h2, .runtime-inspector h3 { margin: 8px 0; }
+.inspection-notice, .inspection-result {
+  padding: 16px;
+  border: 1px solid var(--zt-controlBorder);
+  border-radius: 8px;
+}
+.inspection-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 20px 0; }
+.inspection-item { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--zt-controlBorder); border-radius: 8px; }
+.runtime-inspector code { overflow-wrap: anywhere; white-space: normal; }
+.runtime-inspector label { min-width: 0; }
+.runtime-inspector input { display: block; max-width: 100%; width: 100%; margin-top: 8px; color: inherit; }
+.runtime-inspector [role="alert"] { border-left: 4px solid currentColor; padding: 12px; }
+.inspection-result { font-weight: 700; }
+@media (max-width: 700px) {
+  .inspection-columns { grid-template-columns: minmax(0, 1fr); }
+  .runtime-inspector { padding: 16px; }
+}
