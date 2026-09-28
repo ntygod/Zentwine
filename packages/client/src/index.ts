@@ -96,3 +96,11 @@ export type {
   RuntimeInputArtifactSnapshot,
   RuntimeInputArtifactDelivery,
 } from "./runtime-input-artifact.js";
+
+export {
+  RuntimeArtifactHandoff,
+  type RuntimeHandoffStatus,
+  type RuntimeHandoffFault,
+  type RuntimeHandoffSnapshot,
+  type RuntimeHandoffDelivery,
+} from "./runtime-artifact-handoff.js";
