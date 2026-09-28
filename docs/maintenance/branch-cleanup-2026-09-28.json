@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "repository": "ntygod/Zentwine",
+  "audited_at": "2026-09-28T12:08:54Z",
+  "snapshot_main": "7f3645482ba338aab96292198e15f7079e1bcf8a",
+  "default_branch": "main",
+  "deletion_status": "not_executed",
+  "evidence": {
+    "run_id": 36419945655,
+    "job_id": 108919973624,
+    "artifact_id": 10969057582,
+    "artifact_sha256": "38e5a4778c4206ffc6ddff21524314b0c1333f2968a07779292ab4cf6ad4ad9e",
+    "scope": "public_branch_and_pr_metadata_plus_full_git_ancestry_not_write_execution"
+  },
+  "retain": [
+    "main",
+    "feat/ZT03-02-version-cas",
+    "chore/repository-harness"
+  ],
+  "candidates": [
+    {
+      "branch": "docs/ZT02-06-audit-handover",
+      "sha": "f8fb067b646139cb85efd8f449d57b2caebc824f",
+      "pr": 29,
+      "merged_at": "2026-09-26T03:33:27Z",
+      "merge_commit_sha": "520e4d21935aad8f82fd8a47123e80183abdd04f",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "docs/full-product-development-plan",
+      "sha": "180dfc5082b0415727664f621945b639a1359e70",
+      "pr": 1,
+      "merged_at": "2026-09-24T08:21:33Z",
+      "merge_commit_sha": "0f9db94bb57ea015845cdd10c17d9c73737ca908",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT01-02-engineering-foundation",
+      "sha": "de608c799332c598dff0aa141b8c8576d280f1e5",
+      "pr": 5,
+      "merged_at": "2026-09-24T09:24:08Z",
+      "merge_commit_sha": "bd5610e6d14f6e58a0f85814bca1f6e89aaf8ef7",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT01-03-safe-foundations",
+      "sha": "9ee68f1029187d816a490a79b9c4ad4a5461122d",
+      "pr": 7,
+      "merged_at": "2026-09-24T09:59:32Z",
+      "merge_commit_sha": "966a6e823713546c23ba684dda0ebd9e017a8996",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT01-04-isolated-testkit",
+      "sha": "c837793a3c69278573ad7c4dd2ce5aa5948dc080",
+      "pr": 9,
+      "merged_at": "2026-09-24T10:37:08Z",
+      "merge_commit_sha": "9b7357d69a375263b33290e157293369ff5ecac5",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT01-05-quality-gates",
+      "sha": "4963f92b92a25596c1f1cc1e941810eb46b6bb93",
+      "pr": 11,
+      "merged_at": "2026-09-24T13:39:53Z",
+      "merge_commit_sha": "b8bff3d7fc58e4a1733f5881bd8e59e8eac5aeb6",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT01-06-development-environment",
+      "sha": "c1b5ebe36dcd4cf4ad78ce98f9336762f1bce374",
+      "pr": 13,
+      "merged_at": "2026-09-24T16:29:04Z",
+      "merge_commit_sha": "921980b45926c46cc1d6fc8c0c1d5446b672fcfa",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-01-identity-sessions",
+      "sha": "a3f0ee9d4951a8b67704fb79f25489b324e7126f",
+      "pr": 16,
+      "merged_at": "2026-09-25T03:19:47Z",
+      "merge_commit_sha": "979ec37761f52390c938297de63cbcabffb2c0ad",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-02-authorization-policy",
+      "sha": "493996434ecee70922ff439ea156f8f8dc1101f8",
+      "pr": 18,
+      "merged_at": "2026-09-25T06:43:18Z",
+      "merge_commit_sha": "0edf8dea0ab7e4a2f319c8dad9a089788a7713b4",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-03-agent-delegation",
+      "sha": "038daa2083990dc1981f3fb29dcbccace3108125",
+      "pr": 20,
+      "merged_at": "2026-09-25T07:42:20Z",
+      "merge_commit_sha": "570c9297369eb5ddf1e0caa9093ff76236ee47a4",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-04-bound-approvals",
+      "sha": "09de530ac97219949643fba446c40c79888b1bd0",
+      "pr": 22,
+      "merged_at": "2026-09-25T10:40:24Z",
+      "merge_commit_sha": "0655247417c1750d0c1111b8455919a9ddf61405",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-05-organization-lifecycle",
+      "sha": "93a5c05ed83e2c57a6090d467d74bda0805415ae",
+      "pr": 24,
+      "merged_at": "2026-09-25T14:36:34Z",
+      "merge_commit_sha": "7c7a7f3672f8617a0bb0886d55ab3e48660df0cc",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-06-access-matrix",
+      "sha": "3b06d31cfc04e17c1909c3d6eb781bcbcfafa7df",
+      "pr": 26,
+      "merged_at": "2026-09-25T15:18:12Z",
+      "merge_commit_sha": "f58ae5433a282a97df365fb65ee9ec7066209b50",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-06-audit-view",
+      "sha": "2ec7c5fe5a2b9dfd037804d4576bf33689ab321e",
+      "pr": 27,
+      "merged_at": "2026-09-25T16:34:41Z",
+      "merge_commit_sha": "48f5ae01f605fc5af493f39c46206064c5c854d7",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT02-06-emergency-revocation",
+      "sha": "1d3f38398e85fd32291c3ebe5df896d88a37117f",
+      "pr": 28,
+      "merged_at": "2026-09-26T02:49:08Z",
+      "merge_commit_sha": "a30e7fe0257315fd7ad94c67c24a7b0772541d0f",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT03-01-tenant-repository",
+      "sha": "a42b43cafd69f0e4269d007f6342c6bb9580853e",
+      "pr": 31,
+      "merged_at": "2026-09-26T04:52:40Z",
+      "merge_commit_sha": "4cda38a41bcbf76856bc8c9a801525c9482037cd",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT03-02A-version-primitives",
+      "sha": "761f62b11b274a8e0e5a8c8486781f6af6496306",
+      "pr": 34,
+      "merged_at": "2026-09-26T06:32:17Z",
+      "merge_commit_sha": "b7e1c4abd6a4f531e16e2dabf097dea2407e56e4",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT04-01-design-system",
+      "sha": "14d6074404951ddff3133a039876e7a44a7e661f",
+      "pr": 37,
+      "merged_at": "2026-09-26T08:38:57Z",
+      "merge_commit_sha": "91c05699aed5196b8d067e60e5ac133b26b9795f",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT04-02-workbench-navigation",
+      "sha": "a5dc0bec52f6e9a6ae1f3b29c47df2bd61225378",
+      "pr": 39,
+      "merged_at": "2026-09-26T11:45:51Z",
+      "merge_commit_sha": "2fa34f1480c14e90c21497b79a462bc67e44f94e",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT04-03-approval-inbox",
+      "sha": "29bbdc23720f36d0ac82d1fab3ed1d3235779ff1",
+      "pr": 45,
+      "merged_at": "2026-09-27T05:47:51Z",
+      "merge_commit_sha": "a5558e734a896b9f0974bc31e319471316827d45",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT04-03-catalog-approval-workflow",
+      "sha": "2910a2b822b1f263c995add178f2a0540b06f6ab",
+      "pr": 43,
+      "merged_at": "2026-09-26T15:55:10Z",
+      "merge_commit_sha": "3b7014e74c431b50dafb4169cb2c49b5567bd5a6",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT04-03-resource-object-page",
+      "sha": "ad25aebdfbe13d558d6cc798c64b920699ee9610",
+      "pr": 41,
+      "merged_at": "2026-09-26T12:58:55Z",
+      "merge_commit_sha": "76eb4582d68731b4ba37dca8ed7e6af3f09463b4",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-artifact-handoff",
+      "sha": "df15d976f4ece4db1fbdad450b06912de0573921",
+      "pr": 56,
+      "merged_at": "2026-09-28T01:49:11Z",
+      "merge_commit_sha": "b3296178f682f090fb6636f0c444eb62c16e71ea",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-input-artifact",
+      "sha": "3e757e31dfae249b325920a91c016aabe42ea97f",
+      "pr": 54,
+      "merged_at": "2026-09-27T17:04:34Z",
+      "merge_commit_sha": "11a9de8a3d9104f0d231e3dc1fc9ff0af0c6961b",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-input-bundle",
+      "sha": "ddf3add51cbf20477e8d181be0fe1d9948d4ddc3",
+      "pr": 58,
+      "merged_at": "2026-09-28T03:25:38Z",
+      "merge_commit_sha": "c51d7f1b92a3a841bc10075b55ef04aebfb1c793",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-runtime-byte-stream",
+      "sha": "3a8a9951260f7828b6f23473c9ad044b117e4c0f",
+      "pr": 52,
+      "merged_at": "2026-09-27T15:54:09Z",
+      "merge_commit_sha": "286f3fba183124e6a66b744e7b53ada49bcb6e76",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-runtime-observer",
+      "sha": "6f2490fc08bd04e011e0fdbe4e754a5564d5b880",
+      "pr": 50,
+      "merged_at": "2026-09-27T14:33:41Z",
+      "merge_commit_sha": "fa2baa5a3142a84a52922a76cc4f5143b21b5fed",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-runtime-wire",
+      "sha": "03a51dfcbc4fb839a9d5de49fe2335427957c7dc",
+      "pr": 48,
+      "merged_at": "2026-09-27T13:06:58Z",
+      "merge_commit_sha": "bdfa8449ea039b45fa407055c6cbf25911cd5d8e",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-studio-inspection",
+      "sha": "e1a38216086d87dd93ff2733bd4ac218d87afb66",
+      "pr": 60,
+      "merged_at": "2026-09-28T06:37:17Z",
+      "merge_commit_sha": "d62f5b37bc551a275cb69190dcabd8b276e92842",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT12-01-terminal-inspection",
+      "sha": "afa0ed45ce411e000d794add5f7d6a4e186ed4c4",
+      "pr": 62,
+      "merged_at": "2026-09-28T07:45:05Z",
+      "merge_commit_sha": "db83422bb4f2beaf5b147909aec19dc543b92e6c",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "feat/ZT18-01-local-repository",
+      "sha": "eb162dc5cf31a60c62269f92a991703d79347bc5",
+      "pr": 65,
+      "merged_at": "2026-09-28T09:05:54Z",
+      "merge_commit_sha": "7f3645482ba338aab96292198e15f7079e1bcf8a",
+      "ancestor_of_snapshot_main": true
+    },
+    {
+      "branch": "spike/ZT01-01-durable-workflow",
+      "sha": "09297979ab7d2a8a57f0d52027259aa173eff657",
+      "pr": 3,
+      "merged_at": "2026-09-24T08:52:48Z",
+      "merge_commit_sha": "a74d81b2bd82b9fc4c6a813ef823236260689c02",
+      "ancestor_of_snapshot_main": true
+    }
+  ]
+}

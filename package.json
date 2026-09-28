@@ -67,7 +67,11 @@
     "test:emergency-ui": "node scripts/run-emergency-tests.mjs --browser",
     "test:tenant": "node --test tests/tenant.test.mjs",
     "test:tenant-integration": "node scripts/run-tenant-tests.mjs",
-    "tenant:admin": "node scripts/tenant-admin.mjs"
+    "tenant:admin": "node scripts/tenant-admin.mjs",
+    "harness:context": "python3 scripts/harness.py context",
+    "harness:check": "python3 scripts/harness.py check",
+    "test:harness": "python3 -m unittest discover -s tests/quality -p \"test_harness*.py\" -v",
+    "branches:audit": "python3 scripts/maintenance/branches.py"
   },
   "devDependencies": {
     "typescript": "6.0.2",

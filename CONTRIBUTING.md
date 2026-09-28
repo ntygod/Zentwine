@@ -2,7 +2,7 @@
 
 ## 先选择任务和基线
 
-阅读 [AGENTS.md](AGENTS.md)、[实际进度](docs/tasks/status.md) 和对应 `docs/modules/`。领取有明确依赖与验收的工作包，在独立分支修改；不要以规划总数计算产品进度。目录边界遵循 [架构](docs/plans/02-architecture.md)，重要改变记录 ADR。默认在 Linux 开发；macOS/Windows 原生运行仍需独立验证。
+阅读 [AGENTS.md](AGENTS.md) 与 [实际进度](docs/tasks/status.md)，用 `pnpm harness:context <目标路径...>` 找到适用目录指引，再按需选择 [已有能力指南](docs/development/README.md) 或 [模块规划](docs/plans/README.md)。领取有明确依赖与验收的工作包，在独立分支修改；不要以规划总数计算产品进度。目录边界遵循 [架构](docs/plans/02-architecture.md)，重要改变记录 ADR。默认在 Linux 开发；macOS/Windows 原生运行仍需独立验证。
 
 ## 新机器设置
 
@@ -38,10 +38,14 @@ pnpm test:e2e
 
 ## 提交前
 
-运行 `pnpm check`、`pnpm quality:check` 和改动涉及的浏览器/真实数据库/故障验证。对比基线可显式设置 `QUALITY_BASE_REF=<可信base SHA>`；不能为了通过而删除断言、绕过契约版本、变更豁免或减掉必要 CI job。新行为用新增测试验证；需要修订旧断言时单独记录测试方案决定，不直接弱化保护。
+运行 `pnpm check`、`pnpm quality:check`、`pnpm harness:check`、`pnpm docs:check` 和改动涉及的浏览器/真实数据库/故障验证；按 [验证路由](docs/harness/verification.md) 选对应套件。对比基线可显式设置 `QUALITY_BASE_REF=<可信base SHA>`；不能为了通过而删除断言、绕过契约版本、变更豁免或减掉必要 CI job。新行为用新增测试验证；需要修订旧断言时单独记录测试方案决定，不直接弱化保护。
 
 PR 写明工作包、输入版本、变更范围、实际测试及环境、未完成项、回退和残余风险；可参考 [PR 模板](docs/templates/pull-request.md)。合并前核对最新 head/base、总门禁及证据归属。当前连接器没有平台分支保护管理权限，不能把仓库检查当成强制平台保护。
 
 ## 安全与许可
 
 不要提交 `.zentwine/`、环境变量文件、真实凭据、客户代码或私人日志。日志按必要字段收集。项目发行许可仍为 UNLICENSED；第三方声明不自动成为产品许可。可复现版本与许可元数据入口见 [工具清单](docs/development/toolchain-and-licenses.md)。不自动购买云服务或部署未验证功能到公网。
+
+## 仓库维护
+
+分支清理先核对 [维护流程](docs/maintenance/README.md)，保留默认/受保护/开放 PR 引用及未合并工作；已合并候选也必须重新核对 SHA，不能按名字或年龄直接删除。
