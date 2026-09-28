@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import {
   RuntimeInputBundle,
   RUNTIME_INPUT_BUNDLE_LIMITS,
-} from "@zentwine/client";
+} from "../packages/client/dist/index.js";
 import { handoffFixture, handoffId } from "./fixtures/runtime-handoff-data.mjs";
 
 const encode = (s) => new TextEncoder().encode(s);
