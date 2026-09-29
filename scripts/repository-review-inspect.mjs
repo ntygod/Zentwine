@@ -8,8 +8,14 @@ import { isDeepStrictEqual } from "node:util";
 import { createLocalRepositoryPort } from "./lib/local-repository.mjs";
 
 const MAX_TIMEOUT = 30000;
+const expectationFlags = [
+  ["--expected-base", "baseCommit"],
+  ["--expected-head", "headCommit"],
+  ["--expected-report-sha256", "reportSha256"],
+  ["--expected-notes-sha256", "notesSha256"],
+];
 const usage =
-  "node scripts/repository-review-inspect.mjs <repository> <feedback-directory> [--path <exact-path>] [--timeout-ms 1..30000]";
+  "node scripts/repository-review-inspect.mjs <repository> <feedback-directory> [--path <exact-path>] [--timeout-ms 1..30000] [--expected-base <full-SHA> --expected-head <full-SHA> --expected-report-sha256 <SHA256> --expected-notes-sha256 <SHA256>] (all four pins or none)";
 class FeedbackFault extends Error {
   constructor(code) {
     super(code);
@@ -59,6 +65,33 @@ function rejected(code, stage = "arguments", exitCode = 2) {
     exit_code: exitCode,
   };
 }
+/** Copy caller expectations before any await; these pins are not credentials or authority. */
+function expectedSnapshot(input) {
+  if (!input || Object.getPrototypeOf(input) !== Object.prototype)
+    fail("invalid_arguments");
+  const keys = expectationFlags.map(([, key]) => key);
+  const ownKeys = Reflect.ownKeys(input);
+  if (ownKeys.length !== keys.length) fail("invalid_arguments");
+  const out = {};
+  for (const key of ownKeys) {
+    const d = Object.getOwnPropertyDescriptor(input, key);
+    if (!keys.includes(key) || !d?.enumerable || !("value" in d))
+      fail("invalid_arguments");
+    if (typeof d.value !== "string") fail("invalid_arguments");
+    out[key] = d.value;
+  }
+  const hex = (value, lengths) =>
+    lengths.includes(value.length) && /^[0-9a-f]+$/.test(value);
+  if (
+    !hex(out.baseCommit, [40, 64]) ||
+    !hex(out.headCommit, [40, 64]) ||
+    out.baseCommit.length !== out.headCommit.length ||
+    !hex(out.reportSha256, [64]) ||
+    !hex(out.notesSha256, [64])
+  )
+    fail("invalid_arguments");
+  return Object.freeze(out);
+}
 function optionsSnapshot(input) {
   if (!input || Object.getPrototypeOf(input) !== Object.prototype)
     fail("invalid_arguments");
@@ -66,7 +99,7 @@ function optionsSnapshot(input) {
   for (const key of Reflect.ownKeys(input)) {
     const d = Object.getOwnPropertyDescriptor(input, key);
     if (
-      !["timeoutMs", "signal", "path"].includes(key) ||
+      !["timeoutMs", "signal", "path", "expected"].includes(key) ||
       !d?.enumerable ||
       !("value" in d)
     )
@@ -90,6 +123,8 @@ function optionsSnapshot(input) {
       fail("invalid_arguments");
     }
   }
+  if (Object.hasOwn(input, "expected"))
+    out.expected = expectedSnapshot(out.expected);
   return out;
 }
 
@@ -258,6 +293,13 @@ export async function inspectRepositoryReview(
       "review-notes.json",
       client.REPOSITORY_REVIEW_NOTES_LIMITS.bytes,
     );
+    if (settings.expected) {
+      stage = "expectation";
+      if (original.sha256 !== settings.expected.reportSha256)
+        fail("report_pin_mismatch");
+      if (inputNotes.sha256 !== settings.expected.notesSha256)
+        fail("notes_pin_mismatch");
+    }
     stage = "report";
     let session;
     try {
@@ -271,6 +313,13 @@ export async function inspectRepositoryReview(
     check();
     if (session.report_sha256 !== original.sha256)
       fail("report_digest_mismatch");
+    if (settings.expected) {
+      stage = "expectation";
+      if (session.report.base.commit_sha !== settings.expected.baseCommit)
+        fail("base_pin_mismatch");
+      if (session.report.head.commit_sha !== settings.expected.headCommit)
+        fail("head_pin_mismatch");
+    }
     stage = "notes";
     let notes;
     try {
@@ -337,6 +386,9 @@ export async function inspectRepositoryReview(
           };
     const feedback = {
       comparison_verification: "matches_local_git",
+      ...(settings.expected
+        ? { expectation_verification: "matches_explicit_pins" }
+        : {}),
       binding: {
         report_sha256: original.sha256,
         object_format: report.object_format,
@@ -463,7 +515,14 @@ export async function repositoryReviewInspectMain(args, signal) {
     return rejected("invalid_arguments", "arguments", 64);
   const values = new Map();
   for (let i = 0; i < rest.length; i += 2) {
-    if (!["--path", "--timeout-ms"].includes(rest[i]) || values.has(rest[i]))
+    if (
+      ![
+        "--path",
+        "--timeout-ms",
+        ...expectationFlags.map(([flag]) => flag),
+      ].includes(rest[i]) ||
+      values.has(rest[i])
+    )
       return rejected("invalid_arguments", "arguments", 64);
     values.set(rest[i], rest[i + 1]);
   }
@@ -472,8 +531,18 @@ export async function repositoryReviewInspectMain(args, signal) {
     !/^[1-9][0-9]*$/.test(values.get("--timeout-ms"))
   )
     return rejected("invalid_arguments", "arguments", 64);
+  const pinCount = expectationFlags.filter(([flag]) => values.has(flag)).length;
+  if (pinCount !== 0 && pinCount !== expectationFlags.length)
+    return rejected("invalid_arguments", "arguments", 64);
   return inspectRepositoryReview(repository, directory, {
     signal,
+    ...(pinCount
+      ? {
+          expected: Object.fromEntries(
+            expectationFlags.map(([flag, key]) => [key, values.get(flag)]),
+          ),
+        }
+      : {}),
     ...(values.has("--path") ? { path: values.get("--path") } : {}),
     ...(values.has("--timeout-ms")
       ? { timeoutMs: Number(values.get("--timeout-ms")) }

@@ -40,5 +40,6 @@
 | 文件审阅意见与本地交接 | [阅读](local-review-notes.md) |
 | 多份文件意见预览合并 | [阅读](local-review-merge.md) |
 | 终端核对与按需读取意见 | [阅读](local-review-feedback.md) |
+| 任务基线与审阅交接锁定 | [阅读](local-review-pins.md) |
 
 测试命令与证据要求统一见 [验证路由](../harness/verification.md)。设计理由查 [ADR](../adr/README.md)，不复制到这里。
