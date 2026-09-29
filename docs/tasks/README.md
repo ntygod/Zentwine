@@ -43,5 +43,6 @@
 | ZT18-01-D 执行记录 | [阅读](ZT18-01-D-execution.md) |
 | ZT18-01-E 执行记录 | [阅读](ZT18-01-E-execution.md) |
 | ZT18-01-F 执行记录 | [阅读](ZT18-01-F-execution.md) |
+| ZT18-01-G 执行记录 | [阅读](ZT18-01-G-execution.md) |
 
 完整通道尚未验收项见 [ZT02-06 跟进](zt02-06-acceptance-followup.md)。长流水保存在 [2026-09-28 状态快照](history/2026-09-28-status.md)。验收事实见 [报告索引](../testing/README.md)。

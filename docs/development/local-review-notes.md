@@ -31,3 +31,7 @@ client公开 `createRepositoryReviewSession(originalJson)`、`validateRepository
 ## 汇总多份意见
 
 另有[显式预览合并](local-review-merge.md)入口，可保留当前意见再逐份预览、处理冲突并确认。原空集导入行为和v1交接格式不变，不自动覆盖或合并。
+
+## 交回 coding 工具
+
+从 [终端核对与按需读取](local-review-feedback.md) 先与指定本地Git核对原报告，再按文件读取意见。内容一致仍不代表作者认证或执行权限。

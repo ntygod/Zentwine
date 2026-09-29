@@ -38,6 +38,7 @@
 | ADR-036｜Studio导入比较报告审阅 | [阅读](ADR-036-studio-comparison-review.md) |
 | ADR-037｜原报告绑定的本地文件意见交接 | [阅读](ADR-037-local-review-notes.md) |
 | ADR-038｜多份意见的显式预览合并 | [阅读](ADR-038-local-review-merge.md) |
+| ADR-039｜本地Git核对与按需意见读取 | [阅读](ADR-039-local-review-feedback.md) |
 
 ## 仅有规划占位的提案
 
