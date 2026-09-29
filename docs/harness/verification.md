@@ -33,6 +33,7 @@ pnpm docs:check
 | 本机 Git 端口 | `node --test tests/local-repository.test.mjs tests/local-worktree.test.mjs tests/local-commit-comparison.test.mjs` | 真实临时 Git/子进程；不是远端组织权限验收 |
 | 开发环境/持久实验 | `pnpm drill --suite database` 或 `pnpm drill --suite durability` | 显式准备合成设施；[环境指南](../development/local-environment.md) |
 | 本地意见交接 | `node --test tests/repository-review-notes.test.mjs`；`pnpm exec playwright test tests/browser/repository-review-notes.spec.ts` | 先build；真实下载/重导入，署名未认证且无批准权 |
+| 多份意见预览合并 | `node --test tests/repository-review-merge.test.mjs`；`pnpm exec playwright test tests/browser/repository-review-merge.spec.ts` | 先build；逐条冲突选择、取消及合并集限额 |
 
 数据库精确配置/启动清理以对应指南为准，不在此复制另一套凭据和环境名。`pnpm test:live` 单独报告真实模型状态，Fake 不算 live。权限矩阵严格验收仍保留缺通道阻断，不能降低模式消除失败。
 

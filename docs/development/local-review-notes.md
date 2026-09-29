@@ -27,3 +27,7 @@ client公开 `createRepositoryReviewSession(originalJson)`、`validateRepository
 构建后：`node --test tests/repository-review-notes.test.mjs`；浏览器：`pnpm exec playwright test tests/browser/repository-review-notes.spec.ts`。完整回归仍按 [验证路由](../harness/verification.md)。设计见 [ADR-037](../adr/ADR-037-local-review-notes.md)，结果见 [执行记录](../tasks/ZT18-01-E-execution.md) 与 [报告](../testing/zt18-01-e-report.md)。
 
 这不是服务器持久Review、PR同步、行级评论、真实签名或多作者自动合并；#32/#35/PR33及原父任务范围保持。
+
+## 汇总多份意见
+
+另有[显式预览合并](local-review-merge.md)入口，可保留当前意见再逐份预览、处理冲突并确认。原空集导入行为和v1交接格式不变，不自动覆盖或合并。
