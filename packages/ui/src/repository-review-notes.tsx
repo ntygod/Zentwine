@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   comparisonDisplayText as display,
+  previewRepositoryReviewMerge,
+  applyRepositoryReviewMerge,
+  type RepositoryReviewMergePreview,
+  type RepositoryReviewMergeChoice,
   parseRepositoryReviewNotes,
   serializeRepositoryReviewNotes,
   validateRepositoryReviewNotes,
@@ -8,6 +12,8 @@ import {
   type RepositoryReviewNote,
   type RepositoryReviewSession,
 } from "@zentwine/client";
+
+import { RepositoryReviewMergePanel } from "./repository-review-merge.js";
 
 const kinds = { issue: "问题", suggestion: "建议", question: "疑问" };
 const PAGE = 10;
@@ -90,6 +96,10 @@ export function RepositoryReviewNotes({
 }) {
   const [notes, setNotes] = useState<readonly RepositoryReviewNote[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [preview, setPreview] = useState<RepositoryReviewMergePreview | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -126,6 +136,7 @@ export function RepositoryReviewNotes({
   function resetImport() {
     stop();
     setFile(null);
+    setPreview(null);
     setLoading(false);
     setRevision((n) => n + 1);
   }
@@ -139,7 +150,7 @@ export function RepositoryReviewNotes({
     setMessage("全部意见已清除；未保存的意见无法恢复。");
   }
   function add(note: RepositoryReviewNote): boolean {
-    if (loading) return false;
+    if (loading || preview) return false;
     try {
       const next = validateRepositoryReviewNotes(session, [...notes, note]);
       // Ensure the entire set remains exportable, not just each note independently.
@@ -159,6 +170,8 @@ export function RepositoryReviewNotes({
     }
   }
   function remove(id: string) {
+    if (loading || preview) return;
+    resetImport();
     invalidateDownload();
     setNotes(notes.filter((n) => n.id !== id));
     setPage(0);
@@ -166,7 +179,7 @@ export function RepositoryReviewNotes({
     setMessage("意见已移除；请重新准备交接文件。");
   }
   function prepare() {
-    if (loading || !notes.length) return;
+    if (loading || preview || !notes.length) return;
     invalidateDownload();
     try {
       const text = serializeRepositoryReviewNotes(session, notes);
@@ -182,11 +195,12 @@ export function RepositoryReviewNotes({
       setError("无法准备意见文件；当前意见仍保留在窗口内存中。");
     }
   }
-  function choose(value: File | undefined) {
+  function choose(value: File | undefined, merging = false) {
     resetImport();
     setError("");
     setMessage("");
-    if (!value || notes.length) return;
+    setMergeMode(merging);
+    if (!value || (!merging && notes.length)) return;
     if (value.size < 1 || value.size > LIMITS.bytes) {
       setError("意见文件必须非空且不超过 512 KiB。未读取内容。");
       return;
@@ -194,13 +208,15 @@ export function RepositoryReviewNotes({
     setFile(value);
     setMessage("意见文件已选择，尚未读取。");
   }
-  function load() {
-    if (!file || loading || notes.length) return;
+  function load(merging = false) {
+    if (!file || loading || mergeMode !== merging || (!merging && notes.length))
+      return;
     stop();
-    invalidateDownload();
+    setPreview(null);
+    if (!merging) invalidateDownload();
     setLoading(true);
     setError("");
-    setComposerRevision((n) => n + 1);
+    if (!merging) setComposerRevision((n) => n + 1);
     setMessage("正在读取意见文件…");
     const value = file,
       token = generation.current,
@@ -236,12 +252,22 @@ export function RepositoryReviewNotes({
           fatal: true,
           ignoreBOM: true,
         }).decode(bytes);
-        const next = parseRepositoryReviewNotes(session, text);
-        setNotes(next);
-        setPage(0);
-        finish("意见已导入；内容绑定一致，来源和署名仍未认证。");
+        if (merging) {
+          setPreview(previewRepositoryReviewMerge(session, notes, text));
+          finish("合并预览已准备；当前意见未改变，请检查后明确确认。");
+        } else {
+          const next = parseRepositoryReviewNotes(session, text);
+          setNotes(next);
+          setPage(0);
+          finish("意见已导入；内容绑定一致，来源和署名仍未认证。");
+        }
       } catch {
-        finish("意见文件无效、超限或不属于这份原报告；未导入任何意见。", true);
+        finish(
+          merging
+            ? "合并文件无效、绑定不匹配或合并条数超限；当前意见未改变。"
+            : "意见文件无效、超限或不属于这份原报告；未导入任何意见。",
+          true,
+        );
       } finally {
         bytes?.fill(0);
       }
@@ -256,6 +282,23 @@ export function RepositoryReviewNotes({
       current.readAsArrayBuffer(value);
     } catch {
       finish("无法读取意见文件；未导入任何意见。", true);
+    }
+  }
+  function confirmMerge(choices: readonly RepositoryReviewMergeChoice[]) {
+    if (!preview || loading) return;
+    try {
+      const next = applyRepositoryReviewMerge(session, preview, notes, choices);
+      resetImport();
+      invalidateDownload();
+      setNotes(next);
+      setPage(0);
+      setComposerRevision((n) => n + 1);
+      setError("");
+      setMessage("意见已合并到本窗口内存；来源仍未认证，请重新准备交接文件。");
+    } catch {
+      setError(
+        "合并无法应用：预览已失效、冲突未完整选择或整体超过 512 KiB；当前意见未改变。",
+      );
     }
   }
   return (
@@ -273,7 +316,7 @@ export function RepositoryReviewNotes({
         <NoteComposer
           key={`${composerRevision}:${selectedPath}`}
           path={selectedPath}
-          disabled={loading || notes.length >= LIMITS.notes}
+          disabled={loading || !!preview || notes.length >= LIMITS.notes}
           add={add}
         />
       ) : (
@@ -293,7 +336,7 @@ export function RepositoryReviewNotes({
             <p className="review-note-body">{display(note.body)}</p>
             <button
               onClick={() => remove(note.id)}
-              disabled={loading}
+              disabled={loading || !!preview}
               aria-label={`移除意见 ${page * PAGE + i + 1}`}
             >
               移除意见
@@ -318,7 +361,10 @@ export function RepositoryReviewNotes({
         </nav>
       )}
       <div className="comparison-controls">
-        <button onClick={prepare} disabled={loading || !notes.length}>
+        <button
+          onClick={prepare}
+          disabled={loading || !!preview || !notes.length}
+        >
           准备意见交接文件
         </button>
         <button onClick={clear}>清除全部意见</button>
@@ -342,7 +388,10 @@ export function RepositoryReviewNotes({
             onChange={(e) => choose(e.currentTarget.files?.[0])}
           />
         </label>
-        <button onClick={load} disabled={!file || loading || !!notes.length}>
+        <button
+          onClick={() => load(false)}
+          disabled={!file || loading || mergeMode || !!notes.length}
+        >
           导入文件意见
         </button>
         {loading && (
@@ -356,6 +405,44 @@ export function RepositoryReviewNotes({
           </button>
         )}
       </div>
+      {session.report.entries.length > 0 ? (
+        <>
+          <h4>合并另一份意见</h4>
+          <p>
+            逐份选择同一原报告的意见文件，预览新增、重复与冲突后确认。预览、取消或失败不更改当前意见和已准备的下载；确认成功会清空未添加草稿并使旧下载失效。
+          </p>
+          <div className="comparison-controls">
+            <label>
+              待合并意见 JSON（最多 512 KiB）
+              <input
+                key={`merge:${revision}`}
+                type="file"
+                accept=".json,application/json"
+                onChange={(e) => choose(e.currentTarget.files?.[0], true)}
+              />
+            </label>
+            <button
+              onClick={() => load(true)}
+              disabled={!file || !mergeMode || loading}
+            >
+              预览意见合并
+            </button>
+          </div>
+          {preview && (
+            <RepositoryReviewMergePanel
+              preview={preview}
+              confirm={confirmMerge}
+              cancel={() => {
+                resetImport();
+                setError("");
+                setMessage("合并预览已取消；当前意见未改变。");
+              }}
+            />
+          )}
+        </>
+      ) : (
+        <p>原报告没有变更文件，无可汇总的文件意见。</p>
+      )}
       <p aria-live="polite">{message}</p>
       {error && <p role="alert">{error}</p>}
     </section>

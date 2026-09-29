@@ -173,3 +173,25 @@
   overflow-wrap: anywhere;
   unicode-bidi: isolate;
 }
+
+.review-merge-preview {
+  border: 1px solid var(--zt-border);
+  padding: 16px;
+  min-width: 0;
+}
+.review-merge-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.review-merge-preview label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .review-merge-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

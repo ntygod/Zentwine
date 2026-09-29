@@ -37,6 +37,7 @@
 | ADR-035｜固定提交直接树比较与逐文件披露 | [阅读](ADR-035-fixed-commit-comparison.md) |
 | ADR-036｜Studio导入比较报告审阅 | [阅读](ADR-036-studio-comparison-review.md) |
 | ADR-037｜原报告绑定的本地文件意见交接 | [阅读](ADR-037-local-review-notes.md) |
+| ADR-038｜多份意见的显式预览合并 | [阅读](ADR-038-local-review-merge.md) |
 
 ## 仅有规划占位的提案
 

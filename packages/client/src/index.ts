@@ -125,3 +125,5 @@ export {
 export * from "./repository-comparison.js";
 
 export * from "./repository-review-notes.js";
+
+export * from "./repository-review-merge.js";
