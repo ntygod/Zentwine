@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import cp from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
+import { interceptBeforeExec } from "./fixtures/gated-spawn.mjs";
 import { createLocalRepositoryPort } from "../scripts/lib/local-repository.mjs";
 import { repositoryWorktreeInspectMain } from "../scripts/repository-worktree-inspect.mjs";
 
@@ -75,7 +76,9 @@ function rejected(r, code) {
 }
 function intercept(t, fn) {
   const original = cp.spawn;
-  t.mock.method(cp, "spawn", (...args) => fn(original, ...args));
+  t.mock.method(cp, "spawn", (...args) =>
+    interceptBeforeExec(original, fn, ...args),
+  );
   syncBuiltinESMExports();
   t.after(() => {
     t.mock.restoreAll();
