@@ -405,37 +405,43 @@ export function RepositoryReviewNotes({
           </button>
         )}
       </div>
-      <h4>合并另一份意见</h4>
-      <p>
-        逐份选择同一原报告的意见文件，预览新增、重复与冲突后确认。预览、取消或失败不更改当前意见和已准备的下载；确认成功会清空未添加草稿并使旧下载失效。
-      </p>
-      <div className="comparison-controls">
-        <label>
-          待合并意见 JSON（最多 512 KiB）
-          <input
-            key={`merge:${revision}`}
-            type="file"
-            accept=".json,application/json"
-            onChange={(e) => choose(e.currentTarget.files?.[0], true)}
-          />
-        </label>
-        <button
-          onClick={() => load(true)}
-          disabled={!file || !mergeMode || loading}
-        >
-          预览意见合并
-        </button>
-      </div>
-      {preview && (
-        <RepositoryReviewMergePanel
-          preview={preview}
-          confirm={confirmMerge}
-          cancel={() => {
-            resetImport();
-            setError("");
-            setMessage("合并预览已取消；当前意见未改变。");
-          }}
-        />
+      {session.report.entries.length > 0 ? (
+        <>
+          <h4>合并另一份意见</h4>
+          <p>
+            逐份选择同一原报告的意见文件，预览新增、重复与冲突后确认。预览、取消或失败不更改当前意见和已准备的下载；确认成功会清空未添加草稿并使旧下载失效。
+          </p>
+          <div className="comparison-controls">
+            <label>
+              待合并意见 JSON（最多 512 KiB）
+              <input
+                key={`merge:${revision}`}
+                type="file"
+                accept=".json,application/json"
+                onChange={(e) => choose(e.currentTarget.files?.[0], true)}
+              />
+            </label>
+            <button
+              onClick={() => load(true)}
+              disabled={!file || !mergeMode || loading}
+            >
+              预览意见合并
+            </button>
+          </div>
+          {preview && (
+            <RepositoryReviewMergePanel
+              preview={preview}
+              confirm={confirmMerge}
+              cancel={() => {
+                resetImport();
+                setError("");
+                setMessage("合并预览已取消；当前意见未改变。");
+              }}
+            />
+          )}
+        </>
+      ) : (
+        <p>原报告没有变更文件，无可汇总的文件意见。</p>
       )}
       <p aria-live="polite">{message}</p>
       {error && <p role="alert">{error}</p>}

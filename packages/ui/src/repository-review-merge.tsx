@@ -83,6 +83,7 @@ export function RepositoryReviewMergePanel({
                   <label>
                     冲突处理 {note.id}
                     <select
+                      aria-label={`冲突处理 ${note.id}`}
                       value={choices.get(note.id) ?? ""}
                       onChange={(e) => {
                         const value = e.currentTarget.value;
