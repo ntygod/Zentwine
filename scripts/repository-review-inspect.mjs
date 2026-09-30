@@ -8,8 +8,19 @@ import { isDeepStrictEqual } from "node:util";
 import { createLocalRepositoryPort } from "./lib/local-repository.mjs";
 
 const MAX_TIMEOUT = 30000;
+const nativeSignalAccessors = ["aborted", "reason"].map((key) => [
+  key,
+  Object.getOwnPropertyDescriptor(AbortSignal.prototype, key).get,
+]);
+const combineSignals = AbortSignal.any;
+const expectationFlags = [
+  ["--expected-base", "baseCommit"],
+  ["--expected-head", "headCommit"],
+  ["--expected-report-sha256", "reportSha256"],
+  ["--expected-notes-sha256", "notesSha256"],
+];
 const usage =
-  "node scripts/repository-review-inspect.mjs <repository> <feedback-directory> [--path <exact-path>] [--timeout-ms 1..30000]";
+  "node scripts/repository-review-inspect.mjs <repository> <feedback-directory> [--path <exact-path>] [--timeout-ms 1..30000] [--expected-base <full-SHA> --expected-head <full-SHA> --expected-report-sha256 <SHA256> --expected-notes-sha256 <SHA256>] (all four pins or none)";
 class FeedbackFault extends Error {
   constructor(code) {
     super(code);
@@ -59,6 +70,33 @@ function rejected(code, stage = "arguments", exitCode = 2) {
     exit_code: exitCode,
   };
 }
+/** Copy caller expectations before any await; these pins are not credentials or authority. */
+function expectedSnapshot(input) {
+  if (!input || Object.getPrototypeOf(input) !== Object.prototype)
+    fail("invalid_arguments");
+  const keys = expectationFlags.map(([, key]) => key);
+  const ownKeys = Reflect.ownKeys(input);
+  if (ownKeys.length !== keys.length) fail("invalid_arguments");
+  const out = {};
+  for (const key of ownKeys) {
+    const d = Object.getOwnPropertyDescriptor(input, key);
+    if (!keys.includes(key) || !d?.enumerable || !("value" in d))
+      fail("invalid_arguments");
+    if (typeof d.value !== "string") fail("invalid_arguments");
+    out[key] = d.value;
+  }
+  const hex = (value, lengths) =>
+    lengths.includes(value.length) && /^[0-9a-f]+$/.test(value);
+  if (
+    !hex(out.baseCommit, [40, 64]) ||
+    !hex(out.headCommit, [40, 64]) ||
+    out.baseCommit.length !== out.headCommit.length ||
+    !hex(out.reportSha256, [64]) ||
+    !hex(out.notesSha256, [64])
+  )
+    fail("invalid_arguments");
+  return Object.freeze(out);
+}
 function optionsSnapshot(input) {
   if (!input || Object.getPrototypeOf(input) !== Object.prototype)
     fail("invalid_arguments");
@@ -66,7 +104,7 @@ function optionsSnapshot(input) {
   for (const key of Reflect.ownKeys(input)) {
     const d = Object.getOwnPropertyDescriptor(input, key);
     if (
-      !["timeoutMs", "signal", "path"].includes(key) ||
+      !["timeoutMs", "signal", "path", "expected"].includes(key) ||
       !d?.enumerable ||
       !("value" in d)
     )
@@ -90,7 +128,32 @@ function optionsSnapshot(input) {
       fail("invalid_arguments");
     }
   }
+  if (Object.hasOwn(input, "expected"))
+    out.expected = expectedSnapshot(out.expected);
   return out;
+}
+
+/** Compose native state, not caller-dispatched events or overridable listener methods. */
+function operationSignal(source, local) {
+  if (source === undefined) return local;
+  // AbortSignal.any reads these properties while composing. Reject overridden
+  // accessors without evaluating them. Reflection is not a hostile Proxy sandbox.
+  for (const [key, getter] of nativeSignalAccessors) {
+    let current = source,
+      descriptor;
+    for (let depth = 0; current && depth < 16; depth++) {
+      descriptor = Object.getOwnPropertyDescriptor(current, key);
+      if (descriptor) break;
+      current = Object.getPrototypeOf(current);
+    }
+    if (
+      !descriptor ||
+      descriptor.get !== getter ||
+      descriptor.set !== undefined
+    )
+      fail("invalid_arguments");
+  }
+  return combineSignals([local, source]);
 }
 
 /** Native trusted Linux I/O only; no atomic snapshot or hostile same-user filesystem sandbox. */
@@ -99,22 +162,24 @@ export async function inspectRepositoryReview(
   directory,
   options = {},
 ) {
-  let settings;
+  let settings, controller, signal, selectedRepository, selectedDirectory;
   try {
     if (!validText(repository) || !validText(directory))
       fail("invalid_arguments");
     settings = optionsSnapshot(options);
+    controller = new AbortController();
+    signal = operationSignal(settings.signal, controller.signal);
+    // Bind both caller paths before any await; another task may change process.cwd().
+    // Resolve inside the argument boundary so a missing cwd cannot leak a timer or error.
+    selectedRepository = path.resolve(repository);
+    selectedDirectory = path.resolve(directory);
   } catch {
     return freeze(rejected("invalid_arguments", "arguments", 64));
   }
-  const controller = new AbortController(),
-    signal = controller.signal;
   let expired = false,
     stage = "runtime",
     result;
   const abort = () => controller.abort();
-  settings.signal?.addEventListener("abort", abort, { once: true });
-  if (settings.signal?.aborted) abort();
   const deadline = performance.now() + settings.timeoutMs;
   const timer = setTimeout(() => {
     if (!signal.aborted) {
@@ -131,7 +196,6 @@ export async function inspectRepositoryReview(
   };
   const records = [];
   let rootHandle, rootStat, root;
-  const selectedDirectory = path.resolve(directory);
   const verifyRoot = async () => {
     const named = await fs.lstat(selectedDirectory, { bigint: true });
     const opened = await rootHandle.stat({ bigint: true });
@@ -258,6 +322,13 @@ export async function inspectRepositoryReview(
       "review-notes.json",
       client.REPOSITORY_REVIEW_NOTES_LIMITS.bytes,
     );
+    if (settings.expected) {
+      stage = "expectation";
+      if (original.sha256 !== settings.expected.reportSha256)
+        fail("report_pin_mismatch");
+      if (inputNotes.sha256 !== settings.expected.notesSha256)
+        fail("notes_pin_mismatch");
+    }
     stage = "report";
     let session;
     try {
@@ -271,6 +342,13 @@ export async function inspectRepositoryReview(
     check();
     if (session.report_sha256 !== original.sha256)
       fail("report_digest_mismatch");
+    if (settings.expected) {
+      stage = "expectation";
+      if (session.report.base.commit_sha !== settings.expected.baseCommit)
+        fail("base_pin_mismatch");
+      if (session.report.head.commit_sha !== settings.expected.headCommit)
+        fail("head_pin_mismatch");
+    }
     stage = "notes";
     let notes;
     try {
@@ -287,7 +365,7 @@ export async function inspectRepositoryReview(
     check();
     stage = "repository";
     // Recompute only the carried detail, not every path named in the review notes.
-    const port = createLocalRepositoryPort(repository, {
+    const port = createLocalRepositoryPort(selectedRepository, {
       timeoutMs: settings.timeoutMs,
     });
     const actual = report.selected
@@ -337,6 +415,9 @@ export async function inspectRepositoryReview(
           };
     const feedback = {
       comparison_verification: "matches_local_git",
+      ...(settings.expected
+        ? { expectation_verification: "matches_explicit_pins" }
+        : {}),
       binding: {
         report_sha256: original.sha256,
         object_format: report.object_format,
@@ -414,7 +495,6 @@ export async function inspectRepositoryReview(
         cleanupFailed = true;
       }
     clearTimeout(timer);
-    settings.signal?.removeEventListener("abort", abort);
     if (cleanupFailed) result = rejected("cleanup_failed", "finalize", 3);
     else if (result?.exit_code === 0) {
       try {
@@ -463,7 +543,14 @@ export async function repositoryReviewInspectMain(args, signal) {
     return rejected("invalid_arguments", "arguments", 64);
   const values = new Map();
   for (let i = 0; i < rest.length; i += 2) {
-    if (!["--path", "--timeout-ms"].includes(rest[i]) || values.has(rest[i]))
+    if (
+      ![
+        "--path",
+        "--timeout-ms",
+        ...expectationFlags.map(([flag]) => flag),
+      ].includes(rest[i]) ||
+      values.has(rest[i])
+    )
       return rejected("invalid_arguments", "arguments", 64);
     values.set(rest[i], rest[i + 1]);
   }
@@ -472,8 +559,18 @@ export async function repositoryReviewInspectMain(args, signal) {
     !/^[1-9][0-9]*$/.test(values.get("--timeout-ms"))
   )
     return rejected("invalid_arguments", "arguments", 64);
+  const pinCount = expectationFlags.filter(([flag]) => values.has(flag)).length;
+  if (pinCount !== 0 && pinCount !== expectationFlags.length)
+    return rejected("invalid_arguments", "arguments", 64);
   return inspectRepositoryReview(repository, directory, {
     signal,
+    ...(pinCount
+      ? {
+          expected: Object.fromEntries(
+            expectationFlags.map(([flag, key]) => [key, values.get(flag)]),
+          ),
+        }
+      : {}),
     ...(values.has("--path") ? { path: values.get("--path") } : {}),
     ...(values.has("--timeout-ms")
       ? { timeoutMs: Number(values.get("--timeout-ms")) }
