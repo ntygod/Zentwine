@@ -8,6 +8,11 @@ import { isDeepStrictEqual } from "node:util";
 import { createLocalRepositoryPort } from "./lib/local-repository.mjs";
 
 const MAX_TIMEOUT = 30000;
+const nativeSignalAccessors = ["aborted", "reason"].map((key) => [
+  key,
+  Object.getOwnPropertyDescriptor(AbortSignal.prototype, key).get,
+]);
+const combineSignals = AbortSignal.any;
 const expectationFlags = [
   ["--expected-base", "baseCommit"],
   ["--expected-head", "headCommit"],
@@ -128,28 +133,49 @@ function optionsSnapshot(input) {
   return out;
 }
 
+/** Compose native state, not caller-dispatched events or overridable listener methods. */
+function operationSignal(source, local) {
+  if (source === undefined) return local;
+  // AbortSignal.any reads these properties while composing. Reject overridden
+  // accessors without evaluating them. Reflection is not a hostile Proxy sandbox.
+  for (const [key, getter] of nativeSignalAccessors) {
+    let current = source,
+      descriptor;
+    for (let depth = 0; current && depth < 16; depth++) {
+      descriptor = Object.getOwnPropertyDescriptor(current, key);
+      if (descriptor) break;
+      current = Object.getPrototypeOf(current);
+    }
+    if (
+      !descriptor ||
+      descriptor.get !== getter ||
+      descriptor.set !== undefined
+    )
+      fail("invalid_arguments");
+  }
+  return combineSignals([local, source]);
+}
+
 /** Native trusted Linux I/O only; no atomic snapshot or hostile same-user filesystem sandbox. */
 export async function inspectRepositoryReview(
   repository,
   directory,
   options = {},
 ) {
-  let settings;
+  let settings, controller, signal;
   try {
     if (!validText(repository) || !validText(directory))
       fail("invalid_arguments");
     settings = optionsSnapshot(options);
+    controller = new AbortController();
+    signal = operationSignal(settings.signal, controller.signal);
   } catch {
     return freeze(rejected("invalid_arguments", "arguments", 64));
   }
-  const controller = new AbortController(),
-    signal = controller.signal;
   let expired = false,
     stage = "runtime",
     result;
   const abort = () => controller.abort();
-  settings.signal?.addEventListener("abort", abort, { once: true });
-  if (settings.signal?.aborted) abort();
   const deadline = performance.now() + settings.timeoutMs;
   const timer = setTimeout(() => {
     if (!signal.aborted) {
@@ -466,7 +492,6 @@ export async function inspectRepositoryReview(
         cleanupFailed = true;
       }
     clearTimeout(timer);
-    settings.signal?.removeEventListener("abort", abort);
     if (cleanupFailed) result = rejected("cleanup_failed", "finalize", 3);
     else if (result?.exit_code === 0) {
       try {

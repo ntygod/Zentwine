@@ -44,3 +44,11 @@ await inspectRepositoryReview(repository, feedbackDirectory, {
 这只验证调用方提供的期望，不读取业务任务、认证署名/远端身份或授予权限。没有当前HEAD/index/工作树一致性检查；不能据此开始写入。摘要匹配也不代替 Git 复算、原意见绑定和文件采样。原报告/意见v1、Studio与Git端口不变，原有文件限额、取消、清理及非原子观察限制继续适用。命令参数中的提交与摘要可被本机进程工具看见，不用于传凭据。
 
 构建后运行 `node --test tests/repository-review-pins.test.mjs tests/repository-review-inspect.test.mjs`；完整回归见 [验证路由](../harness/verification.md)。设计见 [ADR-040](../adr/ADR-040-pinned-review-feedback.md)，实际记录见 [执行](../tasks/ZT18-01-H-execution.md) 与 [验证](../testing/zt18-01-h-report.md)。
+
+## 取消信号的调用约定
+
+取消使用原生 `AbortSignal.any` 将调用方信号与本次期限合成内部信号，不在调用方对象上注册或移除公共事件监听器。真实取消不会因其他监听器调用 `stopImmediatePropagation()` 而失效；手动派发同名事件不等于原生取消。取消原因不进入结果。
+
+传入信号须保留标准原生 `aborted`、`reason` 访问器；覆盖或继承替换它们时，在读取交接文件前返回 `invalid_arguments` / 64，不执行替换的 getter。调用方的 `addEventListener` / `removeEventListener` 覆盖属性不会被求值。信号合成完成后的属性替换不改变在途操作；仍不承诺对同进程恶意 Proxy 或全局原型篡改提供沙箱。
+
+补充回归入口：`node --test tests/repository-review-cancellation.test.mjs`。取消、期限、清理失败仍不返回部分意见；此修复不解除该工作包原有文档导航和完整 CI 阻断。
