@@ -162,13 +162,17 @@ export async function inspectRepositoryReview(
   directory,
   options = {},
 ) {
-  let settings, controller, signal;
+  let settings, controller, signal, selectedRepository, selectedDirectory;
   try {
     if (!validText(repository) || !validText(directory))
       fail("invalid_arguments");
     settings = optionsSnapshot(options);
     controller = new AbortController();
     signal = operationSignal(settings.signal, controller.signal);
+    // Bind both caller paths before any await; another task may change process.cwd().
+    // Resolve inside the argument boundary so a missing cwd cannot leak a timer or error.
+    selectedRepository = path.resolve(repository);
+    selectedDirectory = path.resolve(directory);
   } catch {
     return freeze(rejected("invalid_arguments", "arguments", 64));
   }
@@ -192,7 +196,6 @@ export async function inspectRepositoryReview(
   };
   const records = [];
   let rootHandle, rootStat, root;
-  const selectedDirectory = path.resolve(directory);
   const verifyRoot = async () => {
     const named = await fs.lstat(selectedDirectory, { bigint: true });
     const opened = await rootHandle.stat({ bigint: true });
@@ -362,7 +365,7 @@ export async function inspectRepositoryReview(
     check();
     stage = "repository";
     // Recompute only the carried detail, not every path named in the review notes.
-    const port = createLocalRepositoryPort(repository, {
+    const port = createLocalRepositoryPort(selectedRepository, {
       timeoutMs: settings.timeoutMs,
     });
     const actual = report.selected

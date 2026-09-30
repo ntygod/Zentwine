@@ -52,3 +52,11 @@ await inspectRepositoryReview(repository, feedbackDirectory, {
 传入信号须保留标准原生 `aborted`、`reason` 访问器；覆盖或继承替换它们时，在读取交接文件前返回 `invalid_arguments` / 64，不执行替换的 getter。调用方的 `addEventListener` / `removeEventListener` 覆盖属性不会被求值。信号合成完成后的属性替换不改变在途操作；仍不承诺对同进程恶意 Proxy 或全局原型篡改提供沙箱。
 
 补充回归入口：`node --test tests/repository-review-cancellation.test.mjs`。取消、期限、清理失败仍不返回部分意见；此修复不解除该工作包原有文档导航和完整 CI 阻断。
+
+## 调用时的路径上下文
+
+仓库和交接目录可以使用绝对路径，或相对本次调用开始时进程目录的路径。两者在首次异步操作前解析为绝对路径；后续其他任务调用 `process.chdir()` 不会把本次核对改向新目录中的同名仓库。调用方仍应优先传明确的绝对路径，不依赖进程全局目录协调多个任务。
+
+需要解析相对路径但当前目录已不可访问时，在创建操作定时器或读取输入前返回 `invalid_arguments` / 64，不抛出原始 `uv_cwd` 错误。两个输入均为绝对路径时，不要求进程当前目录仍存在。
+
+这只是固定路径解析上下文，不是在调用开始时打开、锁定或认证仓库；文件系统替换、非原子采样、同用户竞态及远端身份限制保持。补充回归：`node --test tests/repository-review-path-context.test.mjs`。
